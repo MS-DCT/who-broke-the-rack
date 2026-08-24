@@ -1,0 +1,13 @@
+---
+network_diagnostic_interface: "{{ data_interface }}"
+network_diagnostic_expected_ip: "{{ data_ip_map[inventory_hostname] | default('') }}"
+network_diagnostic_gateway: "{{ data_gateway | default(data_svi) }}"
+network_diagnostic_pxe_server_ip: "{{ pxe_server_ip }}"
+network_diagnostic_route_targets:
+  - "{{ data_svi }}"
+  - "{{ pxe_server_ip }}"
+network_diagnostic_expected_driver: "{{ diagnostic_expected_driver | default('mlx4_en') }}"
+network_diagnostic_expected_modules: "{{ diagnostic_expected_modules | default(['mlx4_core', 'mlx4_en']) }}"
+# Items: { name: "pxe", host: "192.168.100.60", port: 443 }
+network_diagnostic_port_targets: "{{ diagnostic_port_targets | default([]) }}"
+network_diagnostic_port_timeout: 3

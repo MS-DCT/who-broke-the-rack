@@ -1,0 +1,55 @@
+---
+- name: DC SURVIVE - Day 2 read-only diagnostics
+  hosts: all
+  become: false
+  gather_facts: true
+
+  roles:
+    - role: ../roles/network_diagnostic
+    - role: ../roles/os_diagnostic
+    - role: ../roles/service_diagnostic
+
+  post_tasks:
+    - name: Assemble host evidence
+      ansible.builtin.set_fact:
+        day2_evidence:
+          schema_version: "1.0"
+          project: "{{ project_name }}"
+          host: "{{ inventory_hostname }}"
+          ansible_host: "{{ ansible_host | default(inventory_hostname) }}"
+          spare_rebuild: "{{ inventory_hostname in groups.get('spare', []) }}"
+          generated_at: "{{ ansible_date_time.iso8601 }}"
+          status: "{{ 'FAIL' if 'FAIL' in all_statuses else ('UNKNOWN' if 'UNKNOWN' in all_statuses else ('WARN' if 'WARN' in all_statuses else ('PASS' if 'PASS' in all_statuses else 'SKIP'))) }}"
+          results:
+            - category: network
+              status: "{{ 'FAIL' if 'FAIL' in network_statuses else ('UNKNOWN' if 'UNKNOWN' in network_statuses else ('WARN' if 'WARN' in network_statuses else ('PASS' if 'PASS' in network_statuses else 'SKIP'))) }}"
+              checks: "{{ network_diagnostic_evidence.checks }}"
+            - category: os
+              status: "{{ 'FAIL' if 'FAIL' in os_statuses else ('UNKNOWN' if 'UNKNOWN' in os_statuses else ('WARN' if 'WARN' in os_statuses else ('PASS' if 'PASS' in os_statuses else 'SKIP'))) }}"
+              checks: "{{ os_diagnostic_evidence.checks }}"
+            - category: service
+              status: "{{ 'FAIL' if 'FAIL' in service_statuses else ('UNKNOWN' if 'UNKNOWN' in service_statuses else ('WARN' if 'WARN' in service_statuses else ('PASS' if 'PASS' in service_statuses else 'SKIP'))) }}"
+              checks: "{{ service_diagnostic_evidence.checks }}"
+      vars:
+        network_statuses: "{{ network_diagnostic_evidence.checks | map(attribute='status') | list }}"
+        os_statuses: "{{ os_diagnostic_evidence.checks | map(attribute='status') | list }}"
+        service_statuses: "{{ service_diagnostic_evidence.checks | map(attribute='status') | list }}"
+        all_statuses: "{{ network_statuses + os_statuses + service_statuses }}"
+      changed_when: false
+
+    - name: Ensure controller evidence directory exists
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../../../evidence/day2/diagnostic"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Save host evidence JSON on controller
+      ansible.builtin.copy:
+        content: "{{ day2_evidence | to_nice_json }}\n"
+        dest: "{{ playbook_dir }}/../../../evidence/day2/diagnostic/{{ inventory_hostname }}.json"
+        mode: "0644"
+      delegate_to: localhost
+      become: false

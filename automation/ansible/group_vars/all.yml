@@ -1,0 +1,74 @@
+---
+# ===== 공통 =====
+project_name: "dc-survive"
+
+# 실제 환경 확인 후 inventory의 ansible_user와 함께 수정
+management_network: "192.168.0.0/24"
+data_network: "192.168.100.0/24"
+
+# ===== Data Plane =====
+data_interface: "eno49"
+data_prefix: 24
+
+# A팀 Day1 결과에서 Cisco SVI .200 통신 성공 확인.
+data_svi: "192.168.100.200"
+
+# PXE/Storage 주소. 현재 A팀 결과에서는 .60 접근 실패.
+pxe_server: "192.168.100.60"
+pxe_server_ip: "192.168.100.60"
+
+# 안전상 Day1 자동화에서는 Data Plane을 default route로 만들지 않음.
+# 현장 확인 후 필요하면 별도 반영.
+configure_data_default_gateway: false
+data_gateway: "192.168.100.200"
+
+# ===== Node별 Data IP =====
+data_ip_map:
+  dca-target01: "192.168.100.205"
+  dca-mgmt01:   "192.168.100.206"
+  dca-target02: "192.168.100.207"
+  dca-spare01:  "192.168.100.208"
+
+# ===== Rocky 10 / Mellanox ConnectX-3 =====
+elrepo_release_url: "https://www.elrepo.org/elrepo-release-10.el10.elrepo.noarch.rpm"
+mlx4_package: "kmod-mlx4"
+
+# ===== Health Check =====
+health_targets:
+  - "192.168.100.200"
+  - "192.168.100.60"
+
+# ===== Day 2 diagnostics =====
+# Keep site-specific ports and services empty until they are confirmed.
+diagnostic_expected_driver: "mlx4_en"
+diagnostic_expected_modules:
+  - "mlx4_core"
+  - "mlx4_en"
+diagnostic_filesystem_warn_percent: 90
+diagnostic_critical_systemd_units:
+  - NetworkManager.service
+  - systemd-networkd.service
+  - sshd.service
+  - docker.service
+  - containerd.service
+  - kubelet.service
+diagnostic_port_targets: []
+diagnostic_services: []
+
+diagnostic_port_targets:
+  - name: target01_ssh
+    host: 192.168.100.205
+    port: 22
+
+  - name: target02_ssh
+    host: 192.168.100.207
+    port: 22
+
+  - name: spare01_ssh
+    host: 192.168.100.208
+    port: 22
+
+diagnostic_services:
+  - name: ssh
+    process: sshd
+    port: 22

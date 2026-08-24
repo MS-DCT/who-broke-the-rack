@@ -1,0 +1,3 @@
+---
+os_diagnostic_filesystem_warn_percent: "{{ diagnostic_filesystem_warn_percent | default(90) }}"
+os_diagnostic_critical_systemd_units: "{{ diagnostic_critical_systemd_units | default(['NetworkManager.service', 'systemd-networkd.service', 'sshd.service', 'docker.service', 'containerd.service', 'kubelet.service']) }}"

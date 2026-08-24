@@ -1,0 +1,128 @@
+---
+- name: Check failed systemd units
+  ansible.builtin.shell: |
+    if ! command -v systemctl >/dev/null 2>&1 || [ "$(ps -p 1 -o comm= | tr -d ' ')" != "systemd" ]; then
+      echo "systemd is not the active init system"
+      exit 3
+    fi
+    systemctl --failed --no-legend --plain
+  args:
+    executable: /bin/bash
+  register: os_failed_units
+  changed_when: false
+  failed_when: false
+
+- name: Check filesystem usage
+  ansible.builtin.command:
+    argv: [df, -P, -x, tmpfs, -x, devtmpfs]
+  register: os_filesystems
+  changed_when: false
+  failed_when: false
+
+- name: Find filesystems over threshold
+  ansible.builtin.shell: "df -P -x tmpfs -x devtmpfs | awk 'NR > 1 {gsub(/%/, \"\", $5); if ($5 >= {{ os_diagnostic_filesystem_warn_percent | int }}) print $0}'"
+  args:
+    executable: /bin/bash
+  register: os_full_filesystems
+  changed_when: false
+  failed_when: false
+
+- name: Check firewall state
+  ansible.builtin.shell: |
+    export LC_ALL=C
+    if command -v firewall-cmd >/dev/null 2>&1; then
+      echo "backend=firewalld"
+      state="$(systemctl is-active firewalld 2>&1)"
+      query_rc=$?
+      printf '%s\n' "$state"
+      if [ "$query_rc" -eq 0 ] && [ "$state" = "active" ]; then
+        exit 0
+      elif [ "$state" = "inactive" ]; then
+        exit 2
+      else
+        exit 1
+      fi
+    elif command -v ufw >/dev/null 2>&1; then
+      echo "backend=ufw"
+      if ! command -v sudo >/dev/null 2>&1; then
+        echo "privilege escalation unavailable: sudo not found"
+        exit 1
+      fi
+      state="$(sudo -n -- ufw status 2>&1)" || {
+        printf 'privilege escalation or firewall query failed: %s\n' "$state"
+        exit 1
+      }
+      printf '%s\n' "$state"
+      if printf '%s\n' "$state" | grep -Eqi '^Status: active$'; then
+        exit 0
+      elif printf '%s\n' "$state" | grep -Eqi '^Status: inactive$'; then
+        exit 2
+      else
+        exit 1
+      fi
+    elif command -v nft >/dev/null 2>&1; then
+      echo "backend=nftables"
+      if ! command -v sudo >/dev/null 2>&1; then
+        echo "privilege escalation unavailable: sudo not found"
+        exit 1
+      fi
+      ruleset="$(sudo -n -- nft list ruleset 2>&1)" || {
+        printf 'privilege escalation or firewall query failed: %s\n' "$ruleset"
+        exit 1
+      }
+      printf '%s\n' "$ruleset"
+      [ -n "$ruleset" ]
+    elif command -v iptables-save >/dev/null 2>&1; then
+      echo "backend=iptables"
+      if ! command -v sudo >/dev/null 2>&1; then
+        echo "privilege escalation unavailable: sudo not found"
+        exit 1
+      fi
+      ruleset="$(sudo -n -- iptables-save 2>&1)" || {
+        printf 'privilege escalation or firewall query failed: %s\n' "$ruleset"
+        exit 1
+      }
+      printf '%s\n' "$ruleset"
+      [ -n "$ruleset" ]
+    else
+      echo "No supported firewall tool found"
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
+  register: os_firewall
+  become: false
+  changed_when: false
+  failed_when: false
+
+- name: Classify failed systemd units
+  ansible.builtin.set_fact:
+    os_failed_unit_names: "{{ os_failed_units.stdout_lines | default([]) | map('regex_replace', '^\\s*([^\\s]+).*$','\\1') | list }}"
+    os_critical_failed_unit_names: "{{ (os_failed_units.stdout_lines | default([]) | map('regex_replace', '^\\s*([^\\s]+).*$','\\1') | list) | intersect(os_diagnostic_critical_systemd_units) }}"
+  changed_when: false
+
+- name: Check CPU and load
+  ansible.builtin.command:
+    argv: [uptime]
+  register: os_cpu_load
+  changed_when: false
+  failed_when: false
+
+- name: Check memory
+  ansible.builtin.command:
+    argv: [free, -m]
+  register: os_memory
+  changed_when: false
+  failed_when: false
+
+- name: Build OS evidence
+  ansible.builtin.set_fact:
+    os_diagnostic_evidence:
+      category: os
+      checks:
+        - { name: systemd_failed_units, status: "{{ 'UNKNOWN' if os_failed_units.rc != 0 else ('PASS' if os_failed_unit_names | length == 0 else ('FAIL' if os_critical_failed_unit_names | length > 0 else 'WARN')) }}", detail: "{{ os_failed_units.stdout if os_failed_units.stdout | default('') | trim | length > 0 else os_failed_units.stderr | default('') }}" }
+        - { name: filesystem_usage, status: "{{ 'PASS' if (os_filesystems.rc == 0 and os_full_filesystems.stdout | trim | length == 0) else 'FAIL' }}", detail: "{{ os_filesystems.stdout | default(os_filesystems.stderr) }}" }
+        - { name: firewall_state, status: "{{ 'PASS' if os_firewall.rc == 0 else ('WARN' if os_firewall.rc == 2 else 'UNKNOWN') }}", detail: "{{ os_firewall.stdout if os_firewall.stdout | default('') | trim | length > 0 else os_firewall.stderr | default('') }}" }
+        - { name: cpu_load, status: "{{ 'PASS' if os_cpu_load.rc == 0 else 'FAIL' }}", detail: "{{ os_cpu_load.stdout | default(os_cpu_load.stderr) }}" }
+        - { name: memory, status: "{{ 'PASS' if os_memory.rc == 0 else 'FAIL' }}", detail: "{{ os_memory.stdout | default(os_memory.stderr) }}" }
+  changed_when: false

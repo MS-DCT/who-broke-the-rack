@@ -1,0 +1,77 @@
+---
+- name: Check configured service processes
+  ansible.builtin.command:
+    argv: [pgrep, -a, -f, "--", "{{ item.process }}"]
+  loop: "{{ service_diagnostic_services }}"
+  when: item.process | default('') | length > 0
+  register: service_processes
+  changed_when: false
+  failed_when: false
+
+- name: Check configured listening ports
+  ansible.builtin.command:
+    argv: [ss, -H, -lnt, "sport = :{{ item.port }}"]
+  loop: "{{ service_diagnostic_services }}"
+  when:
+    - item.port is defined
+    - item.port is not none
+  register: service_ports
+  changed_when: false
+  failed_when: false
+
+- name: Check configured HTTP health URLs
+  ansible.builtin.uri:
+    url: "{{ item.health_url }}"
+    method: GET
+    status_code: "{{ item.expected_status | default(200) }}"
+    return_content: false
+    timeout: "{{ service_diagnostic_timeout }}"
+  loop: "{{ service_diagnostic_services }}"
+  when: item.health_url | default('') | length > 0
+  register: service_http
+  changed_when: false
+  failed_when: false
+
+- name: Build initial service evidence
+  ansible.builtin.set_fact:
+    service_diagnostic_evidence:
+      category: service
+      checks: []
+  changed_when: false
+
+- name: Add service checks to evidence
+  ansible.builtin.set_fact:
+    service_diagnostic_evidence: "{{ service_diagnostic_evidence | combine({'checks': service_diagnostic_evidence.checks + service_checks}) }}"
+  vars:
+    service_index: "{{ ansible_loop.index0 }}"
+    process_result: "{{ service_processes.results[service_index | int] }}"
+    port_result: "{{ service_ports.results[service_index | int] }}"
+    http_result: "{{ service_http.results[service_index | int] }}"
+    service_checks:
+      - name: process
+        target: "{{ item.name | default('unnamed_service') }}"
+        status: "{{ 'SKIP' if item.process | default('') | length == 0 else ('PASS' if process_result.rc | default(1) == 0 else 'FAIL') }}"
+        detail: "{{ 'Not configured' if item.process | default('') | length == 0 else process_result.stdout | default(process_result.stderr | default('')) }}"
+      - name: listening_port
+        target: "{{ item.name | default('unnamed_service') }}"
+        status: "{{ 'SKIP' if item.port is not defined or item.port is none else ('PASS' if port_result.rc | default(1) == 0 and port_result.stdout | default('') | trim | length > 0 else 'FAIL') }}"
+        detail: "{{ 'Not configured' if item.port is not defined or item.port is none else (port_result.stdout | default(port_result.stderr | default('port ' ~ item.port))) }}"
+      - name: http_health
+        target: "{{ item.name | default('unnamed_service') }}"
+        status: "{{ 'SKIP' if item.health_url | default('') | length == 0 else ('PASS' if not (http_result.failed | default(true)) else 'FAIL') }}"
+        detail: "{{ 'Not configured' if item.health_url | default('') | length == 0 else http_result.msg | default('HTTP ' ~ (http_result.status | default('unknown'))) }}"
+  loop: "{{ service_diagnostic_services }}"
+  loop_control:
+    extended: true
+  changed_when: false
+
+- name: Record unconfigured service diagnostics as skipped
+  ansible.builtin.set_fact:
+    service_diagnostic_evidence:
+      category: service
+      checks:
+        - name: service_diagnostics
+          status: SKIP
+          detail: No diagnostic_services configured
+  when: service_diagnostic_services | length == 0
+  changed_when: false

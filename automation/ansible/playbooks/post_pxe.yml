@@ -1,0 +1,195 @@
+---
+- name: DC SURVIVE - Post PXE auto configuration
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Show target host
+      ansible.builtin.debug:
+        msg:
+          - "host={{ inventory_hostname }}"
+          - "os={{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+          - "data_ip={{ data_ip_map[inventory_hostname] | default('UNDEFINED') }}"
+
+    # ---------- 공통 패키지 ----------
+    - name: Install common packages on Rocky
+      ansible.builtin.dnf:
+        name:
+          - NetworkManager
+          - curl
+          - git
+          - vim
+          - ethtool
+          - pciutils
+          - iproute
+        state: present
+      when: ansible_facts.os_family == "RedHat"
+
+    - name: Install common packages on Ubuntu
+      ansible.builtin.apt:
+        name:
+          - network-manager
+          - curl
+          - git
+          - vim
+          - ethtool
+          - pciutils
+          - iproute2
+        state: present
+        update_cache: true
+      when: ansible_facts.os_family == "Debian"
+
+    - name: Enable NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        enabled: true
+        state: started
+      when: ansible_facts.os_family == "RedHat"
+
+    - name: Enable SSH on Rocky
+      ansible.builtin.service:
+        name: sshd
+        enabled: true
+        state: started
+      when: ansible_facts.os_family == "RedHat"
+
+    - name: Enable SSH on Ubuntu
+      ansible.builtin.service:
+        name: ssh
+        enabled: true
+        state: started
+      when: ansible_facts.os_family == "Debian"
+
+    # ---------- Rocky 10: mlx4 자동 설치 ----------
+    - name: Import ELRepo GPG key on Rocky 10
+      ansible.builtin.rpm_key:
+        key: "https://www.elrepo.org/RPM-GPG-KEY-v2-elrepo.org"
+        state: present
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - ansible_facts.distribution_major_version | int == 10
+
+    - name: Install ELRepo release on Rocky 10
+      ansible.builtin.dnf:
+        name: "{{ elrepo_release_url }}"
+        state: present
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - ansible_facts.distribution_major_version | int == 10
+
+    - name: Install mlx4 driver package on Rocky 10
+      ansible.builtin.dnf:
+        name: "{{ mlx4_package }}"
+        state: present
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - ansible_facts.distribution_major_version | int == 10
+
+    - name: Load mlx4 modules on Rocky 10
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - mlx4_core
+        - mlx4_en
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - ansible_facts.distribution_major_version | int == 10
+
+    - name: Persist mlx4 modules after reboot
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/mlx4.conf
+        mode: "0644"
+        content: |
+          mlx4_core
+          mlx4_en
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - ansible_facts.distribution_major_version | int == 10
+
+    # ---------- eno49 존재/드라이버 확인 ----------
+    - name: Check eno49 exists
+      ansible.builtin.command: "ip link show {{ data_interface }}"
+      register: eno49_check
+      changed_when: false
+
+    - name: Check eno49 driver
+      ansible.builtin.command: "ethtool -i {{ data_interface }}"
+      register: eno49_driver
+      changed_when: false
+
+    - name: Print eno49 driver
+      ansible.builtin.debug:
+        var: eno49_driver.stdout_lines
+
+    # ---------- Data Plane IP: Rocky ----------
+    - name: Check existing Data Plane connection on Rocky
+      ansible.builtin.command: "nmcli -t -f NAME,DEVICE connection show --active"
+      register: nmcli_active
+      changed_when: false
+      when: ansible_facts.os_family == "RedHat"
+
+    - name: Configure eno49 Data Plane on Rocky
+      ansible.builtin.shell: |
+        set -e
+        CON_NAME="data-plane-{{ data_interface }}"
+        if nmcli -t -f NAME con show | grep -Fxq "$CON_NAME"; then
+          nmcli con mod "$CON_NAME" \
+            connection.interface-name "{{ data_interface }}" \
+            ipv4.method manual \
+            ipv4.addresses "{{ data_ip_map[inventory_hostname] }}/{{ data_prefix }}" \
+            ipv4.never-default yes \
+            ipv6.method disabled
+        else
+          nmcli con add type ethernet \
+            ifname "{{ data_interface }}" \
+            con-name "$CON_NAME" \
+            ipv4.method manual \
+            ipv4.addresses "{{ data_ip_map[inventory_hostname] }}/{{ data_prefix }}" \
+            ipv4.never-default yes \
+            ipv6.method disabled
+        fi
+        nmcli con up "$CON_NAME"
+      args:
+        executable: /bin/bash
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - data_ip_map[inventory_hostname] is defined
+
+    # Ubuntu의 영구 netplan 설정은 실제 인터페이스/기존 YAML을 현장에서 확인한 뒤 추가한다.
+    - name: Ubuntu Data Plane reminder
+      ansible.builtin.debug:
+        msg: "Ubuntu netplan은 기존 설정 충돌 방지를 위해 Day1 현장 확인 후 추가"
+      when: ansible_facts.os_family == "Debian"
+
+    # ---------- Health Check ----------
+    - name: Show Data Plane address
+      ansible.builtin.command: "ip -br addr show {{ data_interface }}"
+      register: data_addr
+      changed_when: false
+
+    - name: Show Data Plane link
+      ansible.builtin.command: "ethtool {{ data_interface }}"
+      register: data_link
+      changed_when: false
+
+    - name: Ping Cisco SVI
+      ansible.builtin.command: "ping -c 3 -W 1 {{ data_svi }}"
+      register: ping_svi
+      changed_when: false
+      failed_when: false
+
+    - name: Ping PXE server
+      ansible.builtin.command: "ping -c 3 -W 1 {{ pxe_server }}"
+      register: ping_pxe
+      changed_when: false
+      failed_when: false
+
+    - name: Print Day1 health result
+      ansible.builtin.debug:
+        msg:
+          - "{{ data_addr.stdout }}"
+          - "SVI ping rc={{ ping_svi.rc }}"
+          - "PXE ping rc={{ ping_pxe.rc }}"
+          - "PXE 실패는 현재 Storage/PXE 물리 링크 이슈일 수 있으므로 즉시 Playbook 실패로 판정하지 않음."

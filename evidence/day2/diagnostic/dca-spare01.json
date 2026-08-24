@@ -1,6 +1,6 @@
 {
     "ansible_host": "192.168.100.208",
-    "generated_at": "2026-08-24T05:43:25Z",
+    "generated_at": "2026-08-24T06:39:50Z",
     "host": "dca-spare01",
     "project": "dc-survive",
     "results": [
@@ -53,14 +53,14 @@
                     "status": "PASS"
                 },
                 {
-                    "detail": "target=192.168.100.60; 2 packets transmitted, 0 received, 100% packet loss, time 1013ms",
+                    "detail": "target=192.168.100.60; 2 packets transmitted, 0 received, 100% packet loss, time 1064ms",
                     "name": "pxe_reachability",
                     "status": "FAIL"
                 },
                 {
-                    "detail": "No diagnostic_port_targets configured; checks run from each managed host when configured",
+                    "detail": "[{\"state\": \"started\", \"port\": 22, \"search_regex\": null, \"match_groups\": [], \"match_groupdict\": {}, \"path\": null, \"elapsed\": 0, \"invocation\": {\"module_args\": {\"host\": \"192.168.100.205\", \"port\": 22, \"connect_timeout\": 3, \"timeout\": 3, \"state\": \"started\", \"delay\": 0, \"active_connection_states\": [\"ESTABLISHED\", \"FIN_WAIT1\", \"FIN_WAIT2\", \"SYN_RECV\", \"SYN_SENT\", \"TIME_WAIT\"], \"sleep\": 1, \"path\": null, \"search_regex\": null, \"exclude_hosts\": null, \"msg\": null}}, \"failed\": false, \"changed\": false, \"failed_when_result\": false, \"item\": {\"name\": \"target01_ssh\", \"host\": \"192.168.100.205\", \"port\": 22}, \"ansible_loop_var\": \"item\"}, {\"state\": \"started\", \"port\": 22, \"search_regex\": null, \"match_groups\": [], \"match_groupdict\": {}, \"path\": null, \"elapsed\": 0, \"invocation\": {\"module_args\": {\"host\": \"192.168.100.207\", \"port\": 22, \"connect_timeout\": 3, \"timeout\": 3, \"state\": \"started\", \"delay\": 0, \"active_connection_states\": [\"ESTABLISHED\", \"FIN_WAIT1\", \"FIN_WAIT2\", \"SYN_RECV\", \"SYN_SENT\", \"TIME_WAIT\"], \"sleep\": 1, \"path\": null, \"search_regex\": null, \"exclude_hosts\": null, \"msg\": null}}, \"failed\": false, \"changed\": false, \"failed_when_result\": false, \"item\": {\"name\": \"target02_ssh\", \"host\": \"192.168.100.207\", \"port\": 22}, \"ansible_loop_var\": \"item\"}, {\"state\": \"started\", \"port\": 22, \"search_regex\": null, \"match_groups\": [], \"match_groupdict\": {}, \"path\": null, \"elapsed\": 0, \"invocation\": {\"module_args\": {\"host\": \"192.168.100.208\", \"port\": 22, \"connect_timeout\": 3, \"timeout\": 3, \"state\": \"started\", \"delay\": 0, \"active_connection_states\": [\"ESTABLISHED\", \"FIN_WAIT1\", \"FIN_WAIT2\", \"SYN_RECV\", \"SYN_SENT\", \"TIME_WAIT\"], \"sleep\": 1, \"path\": null, \"search_regex\": null, \"exclude_hosts\": null, \"msg\": null}}, \"failed\": false, \"changed\": false, \"failed_when_result\": false, \"item\": {\"name\": \"spare01_ssh\", \"host\": \"192.168.100.208\", \"port\": 22}, \"ansible_loop_var\": \"item\"}]",
                     "name": "port_reachability",
-                    "status": "SKIP"
+                    "status": "PASS"
                 }
             ],
             "status": "FAIL"
@@ -74,38 +74,51 @@
                     "status": "PASS"
                 },
                 {
-                    "detail": "Filesystem          1024-blocks    Used Available Capacity Mounted on\n/dev/mapper/rl-root    73334784 6613752  66721032      10% /\n/dev/sda2                983040  449264    533776      46% /boot\n/dev/mapper/rl-home   380160512 7384632 372775880       2% /home",
+                    "detail": "Filesystem          1024-blocks    Used Available Capacity Mounted on\n/dev/mapper/rl-root    73334784 6614560  66720224      10% /\n/dev/sda2                983040  449264    533776      46% /boot\n/dev/mapper/rl-home   380160512 7384632 372775880       2% /home",
                     "name": "filesystem_usage",
                     "status": "PASS"
                 },
                 {
-                    "detail": "backend=firewalld\nAuthorization failed.\n    Make sure polkit agent is running or run the application as superuser.",
+                    "detail": "backend=firewalld\nactive",
                     "name": "firewall_state",
-                    "status": "UNKNOWN"
+                    "status": "PASS"
                 },
                 {
-                    "detail": " 01:43:40 up 1 day, 14:41,  3 users,  load average: 0.34, 0.14, 0.10",
+                    "detail": " 02:40:06 up 1 day, 15:37,  3 users,  load average: 0.21, 0.08, 0.02",
                     "name": "cpu_load",
                     "status": "PASS"
                 },
                 {
-                    "detail": "               total        used        free      shared  buff/cache   available\nMem:          192769        3678      187974          27        2320      189091\nSwap:          32767           0       32767",
+                    "detail": "               total        used        free      shared  buff/cache   available\nMem:          192769        3741      187910          26        2321      189028\nSwap:          32767           0       32767",
                     "name": "memory",
                     "status": "PASS"
                 }
             ],
-            "status": "UNKNOWN"
+            "status": "PASS"
         },
         {
             "category": "service",
             "checks": [
                 {
-                    "detail": "No diagnostic_services configured",
-                    "name": "service_diagnostics",
-                    "status": "SKIP"
+                    "detail": "1656 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups\n31487 sshd-session: rocky [priv]\n31491 sshd-session: rocky@pts/0",
+                    "name": "process",
+                    "status": "PASS",
+                    "target": "ssh"
+                },
+                {
+                    "detail": "LISTEN 0      128    0.0.0.0:22 0.0.0.0:*\nLISTEN 0      128       [::]:22    [::]:*",
+                    "name": "listening_port",
+                    "status": "PASS",
+                    "target": "ssh"
+                },
+                {
+                    "detail": "Not configured",
+                    "name": "http_health",
+                    "status": "SKIP",
+                    "target": "ssh"
                 }
             ],
-            "status": "SKIP"
+            "status": "PASS"
         }
     ],
     "schema_version": "1.0",

@@ -1,0 +1,111 @@
+---
+- name: Check data NIC
+  ansible.builtin.command:
+    argv: [ip, -br, link, show, "{{ network_diagnostic_interface }}"]
+  register: network_nic
+  changed_when: false
+  failed_when: false
+
+- name: Check Mellanox QSFP+ PCI NIC
+  ansible.builtin.shell: "set -o pipefail; lspci -nn | grep -Ei 'Mellanox|ConnectX'"
+  args:
+    executable: /bin/bash
+  register: network_qsfp
+  changed_when: false
+  failed_when: false
+
+- name: Check NIC kernel driver
+  ansible.builtin.command:
+    argv: [ethtool, -i, "{{ network_diagnostic_interface }}"]
+  register: network_driver
+  changed_when: false
+  failed_when: false
+
+- name: Check required kernel modules
+  ansible.builtin.shell: "grep -E '^({{ network_diagnostic_expected_modules | join('|') }}) ' /proc/modules"
+  args:
+    executable: /bin/bash
+  register: network_modules
+  changed_when: false
+  failed_when: false
+
+- name: Check physical link state
+  ansible.builtin.command:
+    argv: [cat, "/sys/class/net/{{ network_diagnostic_interface }}/carrier"]
+  register: network_link
+  changed_when: false
+  failed_when: false
+
+- name: Check data NIC addresses
+  ansible.builtin.command:
+    argv: [ip, -br, address, show, "{{ network_diagnostic_interface }}"]
+  register: network_ip
+  changed_when: false
+  failed_when: false
+
+- name: Check route to gateway
+  ansible.builtin.command:
+    argv: [ip, route, get, "{{ network_diagnostic_gateway }}"]
+  register: network_gateway
+  changed_when: false
+  failed_when: false
+
+- name: Read routing table
+  ansible.builtin.command:
+    argv: [ip, route, show]
+  register: network_routes
+  changed_when: false
+  failed_when: false
+
+- name: Check routes to required destinations
+  ansible.builtin.command:
+    argv: [ip, route, get, "{{ item }}"]
+  loop: "{{ network_diagnostic_route_targets }}"
+  register: network_route_targets
+  changed_when: false
+  failed_when: false
+
+- name: Read configured DNS name servers
+  ansible.builtin.shell: "awk '$1 == \"nameserver\" {print $2}' /etc/resolv.conf"
+  args:
+    executable: /bin/bash
+  register: network_dns
+  changed_when: false
+  failed_when: false
+
+- name: Check PXE server ICMP reachability
+  ansible.builtin.command:
+    argv: [ping, -c, "2", -W, "2", "{{ network_diagnostic_pxe_server_ip }}"]
+  register: network_pxe_ping
+  changed_when: false
+  failed_when: false
+
+- name: Check configured TCP ports
+  ansible.builtin.wait_for:
+    host: "{{ item.host }}"
+    port: "{{ item.port }}"
+    connect_timeout: "{{ network_diagnostic_port_timeout }}"
+    timeout: "{{ network_diagnostic_port_timeout }}"
+    state: started
+  loop: "{{ network_diagnostic_port_targets }}"
+  register: network_ports
+  changed_when: false
+  failed_when: false
+
+- name: Build network evidence
+  ansible.builtin.set_fact:
+    network_diagnostic_evidence:
+      category: network
+      checks:
+        - { name: nic_link, status: "{{ 'PASS' if network_nic.rc == 0 else 'FAIL' }}", detail: "{{ network_nic.stdout | default(network_nic.stderr) }}" }
+        - { name: qsfp_nic_present, status: "{{ 'PASS' if network_qsfp.rc == 0 else 'FAIL' }}", detail: "{{ network_qsfp.stdout | default(network_qsfp.stderr) }}" }
+        - { name: kernel_driver, status: "{{ 'PASS' if (network_driver.rc == 0 and ('driver: ' ~ network_diagnostic_expected_driver) in network_driver.stdout) else 'FAIL' }}", detail: "{{ network_driver.stdout | default(network_driver.stderr) }}" }
+        - { name: kernel_modules, status: "{{ 'PASS' if (network_modules.stdout_lines | default([]) | length) == (network_diagnostic_expected_modules | length) else 'FAIL' }}", detail: "{{ network_modules.stdout | default(network_modules.stderr) }}" }
+        - { name: link_state, status: "{{ 'PASS' if network_link.stdout | trim == '1' else 'FAIL' }}", detail: "{{ network_link.stdout | default(network_link.stderr) }}" }
+        - { name: ip_address, status: "{{ 'SKIP' if network_diagnostic_expected_ip | length == 0 else ('PASS' if network_ip.rc == 0 and network_diagnostic_expected_ip in network_ip.stdout else 'FAIL') }}", detail: "{{ 'No expected IP configured' if network_diagnostic_expected_ip | length == 0 else network_ip.stdout | default(network_ip.stderr) }}" }
+        - { name: gateway, status: "{{ 'PASS' if network_gateway.rc == 0 else 'FAIL' }}", detail: "{{ network_gateway.stdout | default(network_gateway.stderr) }}" }
+        - { name: routes, status: "{{ 'PASS' if (network_route_targets.results | rejectattr('rc', 'equalto', 0) | list | length == 0) else 'FAIL' }}", detail: "{{ network_routes.stdout | default(network_routes.stderr) }}" }
+        - { name: dns, status: "{{ 'PASS' if network_dns.stdout | trim | length > 0 else 'FAIL' }}", detail: "{{ network_dns.stdout | default(network_dns.stderr) }}" }
+        - { name: pxe_reachability, status: "{{ 'PASS' if network_pxe_ping.rc == 0 else ('FAIL' if inventory_hostname in groups.get('spare', []) else 'WARN') }}", detail: "target={{ network_diagnostic_pxe_server_ip }}; {{ network_pxe_ping.stdout_lines | default([]) | last | default(network_pxe_ping.stderr | default('ping failed'), true) }}" }
+        - { name: port_reachability, status: "{{ 'SKIP' if network_diagnostic_port_targets | length == 0 else ('FAIL' if network_ports.results | selectattr('failed', 'defined') | selectattr('failed', 'equalto', true) | list | length > 0 else 'PASS') }}", detail: "{{ 'No diagnostic_port_targets configured; checks run from each managed host when configured' if network_diagnostic_port_targets | length == 0 else (network_ports.results | to_json) }}" }
+  changed_when: false

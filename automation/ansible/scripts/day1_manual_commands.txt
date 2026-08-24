@@ -1,0 +1,28 @@
+# 교육장 도착 후 B가 실행할 순서
+# 아직 실제 서버에 실행하지 말고, A의 PXE/Storage 구간 복구 후 사용
+
+# 0) 관리서버에서
+ansible --version
+ansible-galaxy collection install community.general
+
+# 1) inventory 수정 후 SSH 확인
+ansible all -i inventory.ini -m ping
+
+# 2) 대상 서버 한 대만 먼저 Dry Run/문법 검사
+ansible-playbook -i inventory.ini playbooks/post_pxe.yml --syntax-check
+
+# 3) Spare(.208) 한 대부터 실제 실행
+ansible-playbook -i inventory.ini playbooks/post_pxe.yml --limit dca-spare01 -K
+
+# 4) 서버에서 진단
+sudo bash scripts/diagnose_qsfp.sh eno49 192.168.100.200 192.168.100.60
+
+# 5) 기대 결과
+# - ethtool -i eno49 -> driver: mlx4_en
+# - Link detected: yes
+# - 192.168.100.208/24
+# - 192.168.100.200 ping 성공
+# - 192.168.100.60은 A의 PXE/Storage 링크 복구 전에는 실패 가능
+
+# 6) Spare 성공 후 Rocky 노드로 확대
+ansible-playbook -i inventory.ini playbooks/post_pxe.yml --limit rocky -K

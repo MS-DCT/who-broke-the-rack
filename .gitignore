@@ -13,6 +13,27 @@ frontend/dist/
 # Secrets
 .env
 *.env
+*.credential
+*.credentials
+credentials.*
+secrets.*
+**/vault.yml
+**/vault.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa_*
+id_ed25519
+id_ed25519_*
+*.ovpn
+*.mobileconfig
+wg*.conf
+
+# Ansible runtime
+.ansible/
+*.retry
 
 # Editor / OS
 .vscode/

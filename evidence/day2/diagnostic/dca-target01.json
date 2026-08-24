@@ -1,6 +1,6 @@
 {
     "ansible_host": "192.168.100.205",
-    "generated_at": "2026-08-24T05:43:24Z",
+    "generated_at": "2026-08-24T06:39:50Z",
     "host": "dca-target01",
     "project": "dc-survive",
     "results": [
@@ -53,14 +53,14 @@
                     "status": "PASS"
                 },
                 {
-                    "detail": "target=192.168.100.60; 2 packets transmitted, 0 received, 100% packet loss, time 1020ms",
+                    "detail": "target=192.168.100.60; 2 packets transmitted, 0 received, 100% packet loss, time 1012ms",
                     "name": "pxe_reachability",
                     "status": "WARN"
                 },
                 {
-                    "detail": "No diagnostic_port_targets configured; checks run from each managed host when configured",
+                    "detail": "[{\"state\": \"started\", \"port\": 22, \"search_regex\": null, \"match_groups\": [], \"match_groupdict\": {}, \"path\": null, \"elapsed\": 0, \"invocation\": {\"module_args\": {\"host\": \"192.168.100.205\", \"port\": 22, \"connect_timeout\": 3, \"timeout\": 3, \"state\": \"started\", \"delay\": 0, \"active_connection_states\": [\"ESTABLISHED\", \"FIN_WAIT1\", \"FIN_WAIT2\", \"SYN_RECV\", \"SYN_SENT\", \"TIME_WAIT\"], \"sleep\": 1, \"path\": null, \"search_regex\": null, \"exclude_hosts\": null, \"msg\": null}}, \"failed\": false, \"changed\": false, \"failed_when_result\": false, \"item\": {\"name\": \"target01_ssh\", \"host\": \"192.168.100.205\", \"port\": 22}, \"ansible_loop_var\": \"item\"}, {\"state\": \"started\", \"port\": 22, \"search_regex\": null, \"match_groups\": [], \"match_groupdict\": {}, \"path\": null, \"elapsed\": 0, \"invocation\": {\"module_args\": {\"host\": \"192.168.100.207\", \"port\": 22, \"connect_timeout\": 3, \"timeout\": 3, \"state\": \"started\", \"delay\": 0, \"active_connection_states\": [\"ESTABLISHED\", \"FIN_WAIT1\", \"FIN_WAIT2\", \"SYN_RECV\", \"SYN_SENT\", \"TIME_WAIT\"], \"sleep\": 1, \"path\": null, \"search_regex\": null, \"exclude_hosts\": null, \"msg\": null}}, \"failed\": false, \"changed\": false, \"failed_when_result\": false, \"item\": {\"name\": \"target02_ssh\", \"host\": \"192.168.100.207\", \"port\": 22}, \"ansible_loop_var\": \"item\"}, {\"state\": \"started\", \"port\": 22, \"search_regex\": null, \"match_groups\": [], \"match_groupdict\": {}, \"path\": null, \"elapsed\": 0, \"invocation\": {\"module_args\": {\"host\": \"192.168.100.208\", \"port\": 22, \"connect_timeout\": 3, \"timeout\": 3, \"state\": \"started\", \"delay\": 0, \"active_connection_states\": [\"ESTABLISHED\", \"FIN_WAIT1\", \"FIN_WAIT2\", \"SYN_RECV\", \"SYN_SENT\", \"TIME_WAIT\"], \"sleep\": 1, \"path\": null, \"search_regex\": null, \"exclude_hosts\": null, \"msg\": null}}, \"failed\": false, \"changed\": false, \"failed_when_result\": false, \"item\": {\"name\": \"spare01_ssh\", \"host\": \"192.168.100.208\", \"port\": 22}, \"ansible_loop_var\": \"item\"}]",
                     "name": "port_reachability",
-                    "status": "SKIP"
+                    "status": "PASS"
                 }
             ],
             "status": "WARN"
@@ -74,7 +74,7 @@
                     "status": "WARN"
                 },
                 {
-                    "detail": "Filesystem                        1024-blocks     Used Available Capacity Mounted on\n/dev/mapper/ubuntu--vg-ubuntu--lv   102626232 11392608  85974360      12% /\n/dev/sda2                             1992552   102188   1769124       6% /boot",
+                    "detail": "Filesystem                        1024-blocks     Used Available Capacity Mounted on\n/dev/mapper/ubuntu--vg-ubuntu--lv   102626232 11392740  85974228      12% /\n/dev/sda2                             1992552   102188   1769124       6% /boot",
                     "name": "filesystem_usage",
                     "status": "PASS"
                 },
@@ -84,12 +84,12 @@
                     "status": "WARN"
                 },
                 {
-                    "detail": " 05:43:40 up  4:47,  3 users,  load average: 0.15, 0.03, 0.01",
+                    "detail": " 06:40:06 up  5:44,  3 users,  load average: 0.00, 0.02, 0.00",
                     "name": "cpu_load",
                     "status": "PASS"
                 },
                 {
-                    "detail": "               total        used        free      shared  buff/cache   available\nMem:          188924        2784      186630           5         678      186140\nSwap:           8191           0        8191",
+                    "detail": "               total        used        free      shared  buff/cache   available\nMem:          188924        2820      186592           5         680      186103\nSwap:           8191           0        8191",
                     "name": "memory",
                     "status": "PASS"
                 }
@@ -100,12 +100,25 @@
             "category": "service",
             "checks": [
                 {
-                    "detail": "No diagnostic_services configured",
-                    "name": "service_diagnostics",
-                    "status": "SKIP"
+                    "detail": "4344 sshd: /usr/sbin/sshd -D [listener] 0 of 10-100 startups\n6565 sshd-session: ubuntu [priv]\n6622 sshd-session: ubuntu@pts/0\n12870 sshd-session: ubuntu [priv]\n12927 sshd-session: ubuntu@pts/1",
+                    "name": "process",
+                    "status": "PASS",
+                    "target": "ssh"
+                },
+                {
+                    "detail": "LISTEN 0      4096   0.0.0.0:22 0.0.0.0:*\nLISTEN 0      4096      [::]:22    [::]:*",
+                    "name": "listening_port",
+                    "status": "PASS",
+                    "target": "ssh"
+                },
+                {
+                    "detail": "Not configured",
+                    "name": "http_health",
+                    "status": "SKIP",
+                    "target": "ssh"
                 }
             ],
-            "status": "SKIP"
+            "status": "PASS"
         }
     ],
     "schema_version": "1.0",

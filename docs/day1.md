@@ -59,19 +59,34 @@ Day 1 팀별 작업 기록
 
 # 👤 B — Day 1
 
-> 작업 내용 작성 예정
+> 실제 물리 서버를 Ansible inventory로 구성하고 Data Plane, Mellanox QSFP+ NIC 및 네트워크 Baseline을 검증하여 Day 2 자동 진단의 기반을 준비
 
 ### Development / Infrastructure
--
+- 실제 물리 서버 기반 Ansible Inventory 구성
+  - `dca-target01`: `192.168.100.205` / Ubuntu
+  - `dca-mgmt01`: `192.168.100.206` / Management + Ansible Controller
+  - `dca-target02`: `192.168.100.207` / Rocky Linux
+  - `dca-spare01`: `192.168.100.208` / Rocky Linux / Spare-Rebuild Target
+- Managed node SSH 연결 및 `ansible ping` 검증
+- Managed node Ansible facts 수집
 
 ### Implementation
--
+- `eno49` Data Plane 인터페이스와 노드별 IP, Gateway `192.168.100.200`, 필수 Route 및 DNS 기준 구성
+- NIC, QSFP+, driver, kernel module, link 검사를 별도 hardware role이 아닌 `network_diagnostic` role에 통합
+- `mlx4_en` driver와 `mlx4_core`, `mlx4_en` kernel module 진단 구현
+- 공통 진단 변수와 호스트별 JSON Evidence 생성 구조 준비
 
 ### Test / Verification
--
+- Data Plane `eno49` 및 Mellanox ConnectX-3 Pro QSFP+ NIC 인식 확인
+- `mlx4_en` driver와 `mlx4_core`, `mlx4_en` kernel module 로드 확인
+- 40Gbps Full Duplex 및 `Link detected: yes` 확인
+- Data Plane IP, Route 및 Gateway `192.168.100.200` 통신 검증
+- PXE Server `192.168.100.60` unreachable 상태 수동 확인
+- 3개 managed node의 Day 1 수동 Evidence 확보
 
 ### Issue & Resolution
--
+- PXE Server `192.168.100.60`에 접근할 수 없는 상태를 확인하고 미해결 인프라 이슈로 Evidence에 기록
+- 하드웨어 진단 항목이 분산되지 않도록 NIC/QSFP+/driver/module/link 검사를 `network_diagnostic` 내부의 일관된 Evidence 구조로 통합
 
 ---
 

@@ -1,0 +1,4 @@
+---
+# Each item may define: name, process, port, health_url, expected_status (default 200).
+service_diagnostic_services: "{{ diagnostic_services | default([]) }}"
+service_diagnostic_timeout: 5
