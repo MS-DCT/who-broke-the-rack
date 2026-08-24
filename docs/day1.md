@@ -8,7 +8,7 @@ Day 1 팀별 작업 기록
 
 | Role | 담당 | Day 1 작업 |
 |---|---|---|
-| **A** | - | 작성 예정 |
+| **A** | Hardware / Infrastructure | #8 서버(5,6,7 진행 예정) / iLO / NIC·네트워크 Baseline 구성 |
 | **B** | - | 작성 예정 |
 | **C** | Platform / Visualization | `.206` / `.207` 서버 환경 구성 + FastAPI + SQLite + React Dashboard + GitHub 구성 |
 
@@ -16,19 +16,44 @@ Day 1 팀별 작업 기록
 
 # 👤 A — Day 1
 
-> 작업 내용 작성 예정
+> #8 서버를 기준으로 하드웨어·iLO·NIC 및 네트워크 상태를 점검하고, 이후 장애 탐지·복구 자동화를 위한 정상 상태(Baseline)를 정리
 
 ### Development / Infrastructure
--
+- #8 물리 서버를 Spare 서버로 선정하고 기본 하드웨어 및 네트워크 환경 점검
+- iLO 관리망 접속 및 Remote Console 정상 동작 확인
+- Rocky Linux의 40GbE NIC 인식을 위한 ELRepo 및 `kmod-mlx4` 설치 상태 확인
+- `mlx4_core`, `mlx4_en` 등 Mellanox NIC 드라이버 모듈 로드 상태 확인
+- Cisco Nexus L3 스위치의 VLAN 100 및 서버 연결 포트 상태 확인
+- ZT Storage PXE Server 및 NetScaler/OPNsense 등 기존 인프라 연결 구조 확인
 
 ### Implementation
--
+- #8 서버의 `mlx4_en` 기반 NIC 정상 인식 상태를 Baseline으로 기록
+- Cisco Nexus VLAN 100의 MAC Address Table을 조회하여 #8 서버 NIC와 스위치 포트 매핑 확인
+- Cisco SVI 및 관리망을 기준으로 서버 네트워크 통신 경로 확인
+- iLO에서 향후 Hardware Evidence로 활용할 수 있는 항목 사전 조사
+  - iLO Event Log
+  - Integrated Management Log (IML)
+  - Diagnostics
+  - Server Power
+  - Remote Console
+- OPNsense 및 Citrix NetScaler 관리 인터페이스 접속 상태 확인
 
 ### Test / Verification
--
+- #8 서버 iLO 접속 및 HTML5 Remote Console 동작 확인
+- `kmod-mlx4`, `mlx4_en` 설치 및 로드 상태 확인
+- #8 서버 NIC의 Link 상태 및 VLAN 100 통신 확인
+- Cisco Nexus MAC Address Table에서 #8 서버 MAC 학습 상태 확인
+- Cisco SVI 및 주요 관리 인터페이스 접근 상태 확인
+- OPNsense `.250`, NetScaler LOM `.251` 관리 페이지 접속 확인
 
 ### Issue & Resolution
--
+- ZT Storage PXE Server `.60` 통신 불가 현상 확인
+- Nexus의 Storage 연결 포트 `Eth1/47`, `Eth1/48` 상태 점검
+  - `Eth1/47`: QSFP-40G-CR4 Transceiver 인식 / Physical Link Down
+  - `Eth1/48`: Transceiver 미인식
+- VLAN 100 MAC Address Table에서 Storage 측 MAC이 학습되지 않는 상태 확인
+- IP/라우팅보다 하위 계층인 Storage–Nexus 간 물리 링크 문제 가능성으로 원인 범위 축소
+- 미해결 상태로 기록하고 추후 PXE 통신 복구 후 재검증 예정
 
 ---
 
