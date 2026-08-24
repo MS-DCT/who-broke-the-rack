@@ -1,0 +1,114 @@
+{
+    "ansible_host": "192.168.100.205",
+    "generated_at": "2026-08-24T05:43:24Z",
+    "host": "dca-target01",
+    "project": "dc-survive",
+    "results": [
+        {
+            "category": "network",
+            "checks": [
+                {
+                    "detail": "eno49            UP             48:0f:cf:ee:66:81 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+                    "name": "nic_link",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "04:00.0 Ethernet controller [0200]: Mellanox Technologies MT27520 Family [ConnectX-3 Pro] [15b3:1007]",
+                    "name": "qsfp_nic_present",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "driver: mlx4_en\nversion: 4.0-0\nfirmware-version: 2.42.5700\nexpansion-rom-version: \nbus-info: 0000:04:00.0\nsupports-statistics: yes\nsupports-test: yes\nsupports-eeprom-access: no\nsupports-register-dump: no\nsupports-priv-flags: yes",
+                    "name": "kernel_driver",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "mlx4_en 196608 0 - Live 0x0000000000000000\nmlx4_core 503808 2 mlx4_ib,mlx4_en, Live 0x0000000000000000",
+                    "name": "kernel_modules",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "1",
+                    "name": "link_state",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "eno49            UP             192.168.100.205/24 fe80::4a0f:cfff:feee:6681/64 ",
+                    "name": "ip_address",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "192.168.100.200 dev eno49 src 192.168.100.205 uid 1000 \n    cache ",
+                    "name": "gateway",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "default via 192.168.100.200 dev eno49 proto static \n192.168.100.0/24 dev eno49 proto kernel scope link src 192.168.100.205 ",
+                    "name": "routes",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "127.0.0.53",
+                    "name": "dns",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "target=192.168.100.60; 2 packets transmitted, 0 received, 100% packet loss, time 1020ms",
+                    "name": "pxe_reachability",
+                    "status": "WARN"
+                },
+                {
+                    "detail": "No diagnostic_port_targets configured; checks run from each managed host when configured",
+                    "name": "port_reachability",
+                    "status": "SKIP"
+                }
+            ],
+            "status": "WARN"
+        },
+        {
+            "category": "os",
+            "checks": [
+                {
+                    "detail": "systemd-networkd-wait-online.service loaded failed failed Wait for Network to be Online",
+                    "name": "systemd_failed_units",
+                    "status": "WARN"
+                },
+                {
+                    "detail": "Filesystem                        1024-blocks     Used Available Capacity Mounted on\n/dev/mapper/ubuntu--vg-ubuntu--lv   102626232 11392608  85974360      12% /\n/dev/sda2                             1992552   102188   1769124       6% /boot",
+                    "name": "filesystem_usage",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "backend=ufw\nStatus: inactive",
+                    "name": "firewall_state",
+                    "status": "WARN"
+                },
+                {
+                    "detail": " 05:43:40 up  4:47,  3 users,  load average: 0.15, 0.03, 0.01",
+                    "name": "cpu_load",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "               total        used        free      shared  buff/cache   available\nMem:          188924        2784      186630           5         678      186140\nSwap:           8191           0        8191",
+                    "name": "memory",
+                    "status": "PASS"
+                }
+            ],
+            "status": "WARN"
+        },
+        {
+            "category": "service",
+            "checks": [
+                {
+                    "detail": "No diagnostic_services configured",
+                    "name": "service_diagnostics",
+                    "status": "SKIP"
+                }
+            ],
+            "status": "SKIP"
+        }
+    ],
+    "schema_version": "1.0",
+    "spare_rebuild": false,
+    "status": "WARN"
+}

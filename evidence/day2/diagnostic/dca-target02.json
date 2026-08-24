@@ -1,0 +1,114 @@
+{
+    "ansible_host": "192.168.100.207",
+    "generated_at": "2026-08-24T05:43:25Z",
+    "host": "dca-target02",
+    "project": "dc-survive",
+    "results": [
+        {
+            "category": "network",
+            "checks": [
+                {
+                    "detail": "eno49            UP             70:10:6f:a1:7b:f1 <BROADCAST,MULTICAST,UP,LOWER_UP> ",
+                    "name": "nic_link",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "04:00.0 Ethernet controller [0200]: Mellanox Technologies MT27520 Family [ConnectX-3 Pro] [15b3:1007]",
+                    "name": "qsfp_nic_present",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "driver: mlx4_en\nversion: 4.0-0\nfirmware-version: 2.40.5000\nexpansion-rom-version: \nbus-info: 0000:04:00.0\nsupports-statistics: yes\nsupports-test: yes\nsupports-eeprom-access: no\nsupports-register-dump: no\nsupports-priv-flags: yes",
+                    "name": "kernel_driver",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "mlx4_en 176128 0 - Live 0x0000000000000000 (OE)\nmlx4_core 552960 2 mlx4_ib,mlx4_en, Live 0x0000000000000000 (OE)",
+                    "name": "kernel_modules",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "1",
+                    "name": "link_state",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "eno49            UP             192.168.100.207/24 ",
+                    "name": "ip_address",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "192.168.100.200 dev eno49 src 192.168.100.207 uid 1000 \n    cache ",
+                    "name": "gateway",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "default via 192.168.100.200 dev eno49 proto static metric 100 \n192.168.100.0/24 dev eno49 proto kernel scope link src 192.168.100.207 metric 100 ",
+                    "name": "routes",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "8.8.8.8\n1.1.1.1",
+                    "name": "dns",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "target=192.168.100.60; 2 \ud328\ud0b7\uc774 \uc804\uc1a1\ub428, 0 \uc218\uc2e0\ub428, 100% packet loss, time 1028ms",
+                    "name": "pxe_reachability",
+                    "status": "WARN"
+                },
+                {
+                    "detail": "No diagnostic_port_targets configured; checks run from each managed host when configured",
+                    "name": "port_reachability",
+                    "status": "SKIP"
+                }
+            ],
+            "status": "WARN"
+        },
+        {
+            "category": "os",
+            "checks": [
+                {
+                    "detail": "",
+                    "name": "systemd_failed_units",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "\ud30c\uc77c \uc2dc\uc2a4\ud15c         1024-\ube14\ub85d    \uc0ac\uc6a9      \uac00\uc6a9 \uc6a9\ub7c9 \ub9c8\uc6b4\ud2b8\uc704\uce58\n/dev/mapper/rl-root  73334784 6528340  66806444   9% /\nefivarfs                  176      97        75  57% /sys/firmware/efi/efivars\n/dev/sda2              983040  333724    649316  34% /boot\n/dev/sda1              613160    8548    604612   2% /boot/efi\n/dev/mapper/rl-home 379546368 7309260 372237108   2% /home\n/dev/sdb1            30045168     512  30044656   1% /run/media/rocky/UBUNTU-SERV",
+                    "name": "filesystem_usage",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "backend=firewalld\nAuthorization failed.\n    Make sure polkit agent is running or run the application as superuser.",
+                    "name": "firewall_state",
+                    "status": "UNKNOWN"
+                },
+                {
+                    "detail": " 14:43:40 up  4:47,  3 users,  load average: 0.11, 0.03, 0.01",
+                    "name": "cpu_load",
+                    "status": "PASS"
+                },
+                {
+                    "detail": "               total        used        free      shared  buff/cache   available\nMem:          192764        3693      188233          32        2045      189070\nSwap:          32767           0       32767",
+                    "name": "memory",
+                    "status": "PASS"
+                }
+            ],
+            "status": "UNKNOWN"
+        },
+        {
+            "category": "service",
+            "checks": [
+                {
+                    "detail": "No diagnostic_services configured",
+                    "name": "service_diagnostics",
+                    "status": "SKIP"
+                }
+            ],
+            "status": "SKIP"
+        }
+    ],
+    "schema_version": "1.0",
+    "spare_rebuild": false,
+    "status": "UNKNOWN"
+}
