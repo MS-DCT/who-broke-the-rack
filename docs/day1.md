@@ -59,35 +59,64 @@ Day 1 팀별 작업 기록
 
 # 👤 B — Day 1
 
-> 실제 물리 서버를 Ansible inventory로 구성하고 Data Plane, Mellanox QSFP+ NIC 및 네트워크 Baseline을 검증하여 Day 2 자동 진단의 기반을 준비
+> 실제 물리 서버를 Ansible 관리 대상으로 구성하고, Data Plane·QSFP+ NIC·Driver·Kernel Module·Route·PXE 접근성을 수동 검증하여 Day 2 자동 진단의 Baseline을 준비
 
 ### Development / Infrastructure
+
 - 실제 물리 서버 기반 Ansible Inventory 구성
-  - `dca-target01`: `192.168.100.205` / Ubuntu
+  - `dca-target01`: `192.168.100.205` / Ubuntu / Managed Target
   - `dca-mgmt01`: `192.168.100.206` / Management + Ansible Controller
-  - `dca-target02`: `192.168.100.207` / Rocky Linux
+  - `dca-target02`: `192.168.100.207` / Rocky Linux / Managed Target
   - `dca-spare01`: `192.168.100.208` / Rocky Linux / Spare-Rebuild Target
+- `dca-mgmt01 (.206)`을 기준으로 `.205`, `.207`, `.208`을 Ansible managed node로 구성
 - Managed node SSH 연결 및 `ansible ping` 검증
 - Managed node Ansible facts 수집
+- iLO Management Plane과 Linux OS Data Plane 주소를 분리하여 관리
+- 서버 OS 및 Ansible 통신은 Data Plane `192.168.100.0/24` 기준으로 구성
 
 ### Implementation
-- `eno49` Data Plane 인터페이스와 노드별 IP, Gateway `192.168.100.200`, 필수 Route 및 DNS 기준 구성
-- NIC, QSFP+, driver, kernel module, link 검사를 별도 hardware role이 아닌 `network_diagnostic` role에 통합
-- `mlx4_en` driver와 `mlx4_core`, `mlx4_en` kernel module 진단 구현
-- 공통 진단 변수와 호스트별 JSON Evidence 생성 구조 준비
+
+- Day 2 자동 진단에 사용할 공통 Baseline 및 변수 정의
+  - Data Interface: `eno49`
+  - Data Network: `192.168.100.0/24`
+  - Gateway / SVI: `192.168.100.200`
+  - PXE Server: `192.168.100.60`
+  - Expected Driver: `mlx4_en`
+  - Expected Kernel Modules: `mlx4_core`, `mlx4_en`
+- 노드별 Data Plane IP, Gateway, Route, DNS 기준값을 Inventory / Vars에 반영
+- Day 2 자동 진단에 사용할 NIC / QSFP+ / Driver / Kernel Module / Link State 검사 기준 정의
+- 수동 검증 결과와 자동 진단 결과를 비교할 수 있도록 공통 Evidence 구조 준비
+- Day 1 수동 Evidence를 `evidence/day1/manual/`에 저장하여 이후 자동 진단의 기준선으로 활용
 
 ### Test / Verification
-- Data Plane `eno49` 및 Mellanox ConnectX-3 Pro QSFP+ NIC 인식 확인
-- `mlx4_en` driver와 `mlx4_core`, `mlx4_en` kernel module 로드 확인
-- 40Gbps Full Duplex 및 `Link detected: yes` 확인
-- Data Plane IP, Route 및 Gateway `192.168.100.200` 통신 검증
-- PXE Server `192.168.100.60` unreachable 상태 수동 확인
+
+- 3개 managed node의 `eno49` Data Plane 인터페이스 상태 확인
+- Mellanox ConnectX-3 Pro QSFP+ NIC 인식 확인
+- `mlx4_en` Driver 확인
+- `mlx4_core`, `mlx4_en` Kernel Module 로드 확인
+- QSFP+ Link 상태 검증
+  - `Speed: 40000Mb/s`
+  - `Duplex: Full`
+  - `Link detected: yes`
+- 노드별 Data Plane IP 정상 적용 확인
+  - `dca-target01`: `192.168.100.205/24`
+  - `dca-target02`: `192.168.100.207/24`
+  - `dca-spare01`: `192.168.100.208/24`
+- Route 및 Gateway `192.168.100.200` 정상 구성 확인
+- 각 managed node에서 `192.168.100.200` Ping 성공 확인
+- 각 managed node에서 PXE Server `192.168.100.60` Ping 실패 확인
 - 3개 managed node의 Day 1 수동 Evidence 확보
 
 ### Issue & Resolution
-- PXE Server `192.168.100.60`에 접근할 수 없는 상태를 확인하고 미해결 인프라 이슈로 Evidence에 기록
-- 하드웨어 진단 항목이 분산되지 않도록 NIC/QSFP+/driver/module/link 검사를 `network_diagnostic` 내부의 일관된 Evidence 구조로 통합
 
+- Data Gateway `192.168.100.200`은 정상 통신되었지만 PXE Server `192.168.100.60`은 3개 managed node 모두에서 `Destination Host Unreachable` 상태 확인
+- NIC / Link / Data Plane 자체는 정상인 상태에서 PXE 경로만 분리된 장애로 판단하여 미해결 인프라 이슈로 Evidence에 기록
+- PXE 접근 실패를 단순 네트워크 장애로 처리하지 않고, Day 2 자동 진단에서 별도 `pxe_reachability` 항목으로 판정할 수 있도록 진단 기준에 포함
+- 하드웨어 관련 점검 항목이 분산되지 않도록 NIC / QSFP+ / Driver / Kernel Module / Link State를 Day 2 `network_diagnostic`에서 자동화할 수 있도록 Baseline을 통일
+
+### Day 1 Outcome
+
+Day 1에서는 각 managed node의 NIC, Driver, Kernel Module, Link, IP, Route, Gateway 및 PXE 접근성을 수동으로 검증하여 정상 Baseline을 확보했다. 이 Baseline을 기준으로 Day 2에서는 동일 항목을 Ansible Diagnostic Role로 자동화하고, 결과를 JSON Evidence로 표준화한다.
 ---
 
 # 👤 C — Day 1
