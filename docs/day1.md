@@ -1,4 +1,3 @@
-<img width="1919" height="1078" alt="스크린샷 2026-08-24 145740" src="https://github.com/user-attachments/assets/5f3bf1cd-5765-4212-abb3-20ec39be4511" />
 # 📅 Day 1 — 2026-08-24
 
 Day 1 팀별 작업 기록
