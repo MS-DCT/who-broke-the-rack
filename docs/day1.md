@@ -1,4 +1,4 @@
- # 📅 Day 1 — 2026-08-24
+# 📅 Day 1 — 2026-08-24
 
 Day 1 팀별 작업 기록
 
@@ -10,56 +10,70 @@ Day 1 팀별 작업 기록
 |---|---|---|
 | **A** | - | 작성 예정 |
 | **B** | - | 작성 예정 |
-| **C** | Platform / Visualization | FastAPI + SQLite + React Dashboard + GitHub 구성 |
+| **C** | Platform / Visualization | `.206` / `.207` 서버 환경 구성 + FastAPI + SQLite + React Dashboard + GitHub 구성 |
 
 ---
 
-# 🅰️ A — Day 1
+# 👤 A — Day 1
 
 > 작업 내용 작성 예정
 
 ### Development / Infrastructure
-- 
+-
 
 ### Implementation
-- 
+-
 
 ### Test / Verification
-- 
+-
 
 ### Issue & Resolution
-- 
+-
 
 ---
 
-# 🅱️ B — Day 1
+# 👤 B — Day 1
 
 > 작업 내용 작성 예정
 
 ### Development / Infrastructure
-- 
+-
 
 ### Implementation
-- 
+-
 
 ### Test / Verification
-- 
+-
 
 ### Issue & Resolution
-- 
+-
 
 ---
 
-# 🅲 C — Day 1
+# 👤 C — Day 1
 
-## 1. Development Environment
+## 1. Server Environment
 
-Management Server `.206`에서 개발환경 구성
+Day 1 C 서버 구성 대상: `.206`, `.207`
+
+| Server | Hostname | IP | 작업 |
+|---|---|---|---|
+| `.206` | `dca-mgmt01` | `192.168.100.206` | NIC / Data Plane 구성 및 SSH 확인 |
+| `.207` | `dca-target02` | `192.168.100.207` | NIC / Data Plane 구성 및 `.206 → .207` SSH 확인 |
+
+- ConnectX-3 Pro NIC용 `mlx4_core`, `mlx4_en` 구성
+- NetworkManager 기반 네트워크 설정
+- `.206 ↔ .207` 통신 확인
+
+> `.205`, `.208`은 C의 Day 1 실제 서버 구성 대상에 포함하지 않음.
+
+---
+
+## 2. Development Environment
+
+`.206` Management Server에서 Platform 개발환경 구성
 
 ```text
-Hostname : dca-mgmt01
-IP       : 192.168.100.206
-
 Python   : 3.12.9
 Git      : 2.52.0
 Node.js  : v22.23.1
@@ -87,7 +101,7 @@ Linker Cache 갱신 후 Node.js / npm 정상 실행 확인
 
 ---
 
-## 2. Project Structure
+## 3. Project Structure
 
 프로젝트 Root 구성
 
@@ -114,7 +128,7 @@ SQLAlchemy
 
 ---
 
-## 3. SQLite + SQLAlchemy
+## 4. SQLite + SQLAlchemy
 
 `backend/database.py` 구성
 
@@ -124,6 +138,7 @@ SQLAlchemy
 - SQLAlchemy Engine 구성
 - `SessionLocal` 구성
 - SQLAlchemy `Base` 구성
+- SQLite Thread 설정
 
 Database
 
@@ -133,7 +148,7 @@ backend/rack.db
 
 ---
 
-## 4. Database Models
+## 5. Database Models
 
 `backend/models.py` 생성
 
@@ -181,7 +196,7 @@ actions
 
 ---
 
-## 5. FastAPI Backend
+## 6. FastAPI Backend
 
 `backend/main.py` 구성
 
@@ -208,17 +223,21 @@ API     : http://192.168.100.206:8000
 Swagger : http://192.168.100.206:8000/docs
 ```
 
+Browser 및 Swagger UI 정상 접근 확인
+
 ---
 
-## 6. CORS
+## 7. CORS
 
 React Frontend에서 FastAPI 호출 가능하도록 CORS 구성
+
+허용 Origin
 
 ```text
 http://192.168.100.206:5173
 ```
 
-허용
+허용 항목
 
 ```text
 Credentials
@@ -228,9 +247,11 @@ All Headers
 
 ---
 
-## 7. Server API
+## 8. Server API
 
-`/servers`에 4대 Server 정보 구성
+Dashboard 테스트용 `/servers` API 구성
+
+등록 서버
 
 ```text
 server-205
@@ -239,7 +260,7 @@ server-207
 server-208
 ```
 
-Server 정보
+각 Server 정보
 
 ```text
 server_id
@@ -249,17 +270,19 @@ ip
 status
 ```
 
-초기 상태
+초기 Status
 
 ```text
 UNKNOWN
 ```
 
+> `/servers`의 4대 정보는 Dashboard/API 표시용 데이터이며 실제 Day 1 C 서버 구성 대상은 `.206`, `.207`임.
+
 ---
 
-## 8. Mock Incident / Evidence
+## 9. Mock Incident / Evidence
 
-`backend/seed.py` 생성
+Frontend / API 테스트용 `backend/seed.py` 생성
 
 ### Mock Incident
 
@@ -278,7 +301,7 @@ Status      : INVESTIGATING
 | NETWORK | `gateway_reachability` | FAIL | HIGH |
 | OS | `ssh_reachability` | UNKNOWN | WARN |
 
-Scenario
+Mock Scenario
 
 ```text
 HARDWARE
@@ -302,9 +325,7 @@ OS
 
 ---
 
-## 9. API Test
-
-테스트
+## 10. API Test
 
 ```bash
 curl http://127.0.0.1:8000/incidents
@@ -322,9 +343,9 @@ Actions 빈 배열 정상 반환
 
 ---
 
-## 10. Port 8000 충돌 해결
+## 11. Port 8000 충돌 해결
 
-기존 Uvicorn Process로 Port 충돌 발생
+기존 Uvicorn Process가 Port 8000 사용 중이어서 충돌 발생
 
 ```text
 Address already in use
@@ -336,11 +357,11 @@ Process 확인
 sudo ss -ltnp | grep :8000
 ```
 
-기존 Process 정리 후 FastAPI 재실행
+기존 Process 확인 및 정리 후 FastAPI 정상 재실행
 
 ---
 
-## 11. React + Vite
+## 12. React + Vite
 
 `frontend/` React Project 구성
 
@@ -350,7 +371,7 @@ Vite
 Oxlint
 ```
 
-실행
+Frontend 실행
 
 ```bash
 npm run dev -- --host 0.0.0.0
@@ -364,11 +385,11 @@ http://192.168.100.206:5173
 
 ---
 
-## 12. Rack Overview
+## 13. Rack Overview
 
 `/servers` API 연동
 
-4대 Server Card 구성
+프로젝트 대상 4대 Server Card 구성
 
 ### 표시 정보
 
@@ -380,7 +401,7 @@ Data Plane IP
 Status
 ```
 
-Server
+Dashboard 표시 대상
 
 ```text
 dca-target01
@@ -391,18 +412,18 @@ dca-spare01
 
 ---
 
-## 13. Evidence Timeline
+## 14. Evidence Timeline
 
 `/evidence` API 연동
 
-`Promise.all()`을 이용하여 다음 API 동시 조회
+`Promise.all()`을 이용한 `/servers`, `/evidence` 동시 조회
 
 ```text
 /servers
 /evidence
 ```
 
-Evidence Card 구성
+Evidence Card 표시 정보
 
 ```text
 Layer
@@ -414,9 +435,11 @@ Severity
 Details
 ```
 
+Mock Evidence 4개 정상 표시 확인
+
 ---
 
-## 14. Evidence Status UI
+## 15. Evidence Status UI
 
 Result별 UI 구성
 
@@ -438,7 +461,7 @@ OS        → UNKNOWN
 
 ---
 
-## 15. Dashboard CSS
+## 16. Dashboard CSS
 
 Vite 기본 CSS와 Dashboard CSS 충돌 발생
 
@@ -451,7 +474,7 @@ Vite 기본 CSS와 Dashboard CSS 충돌 발생
 - Evidence Card Style 구성
 - Result별 Style 구성
 
-최종 화면
+최종 화면 구성
 
 ```text
 WHO BROKE THE RACK?
@@ -471,7 +494,7 @@ Evidence Timeline
 
 ---
 
-## 16. FastAPI ↔ React
+## 17. FastAPI ↔ React Integration
 
 최종 데이터 흐름 연결 확인
 
@@ -491,7 +514,7 @@ DB → Backend API → Frontend Dashboard 연동 확인
 
 ---
 
-## 17. Firewall
+## 18. Firewall
 
 FastAPI Port
 
@@ -518,13 +541,13 @@ sudo firewall-cmd --list-ports
 8000/tcp
 ```
 
-Backend / Frontend 별도 SSH Session 실행 후 Browser 접근 확인
+Backend / Frontend 별도 SSH Session에서 동시 실행 후 Browser 접근 확인
 
 ---
 
 # 🌿 Git / GitHub
 
-## 18. Local Git
+## 19. Local Git
 
 프로젝트 Root에서 Git 초기화
 
@@ -540,7 +563,7 @@ main
 
 ---
 
-## 19. `.gitignore`
+## 20. `.gitignore`
 
 Root `.gitignore` 구성
 
@@ -561,21 +584,21 @@ frontend/dist/
 .DS_Store
 ```
 
-Git 제외
+Git 제외 대상
 
-- Virtual Environment
+- Python Virtual Environment
 - Python Cache
-- SQLite DB
+- SQLite Local DB
 - Node Modules
-- Build File
+- Frontend Build File
 - Environment Secret
 - Editor 설정
 
 ---
 
-## 20. Initial Commit
+## 21. Initial Commit
 
-Stage
+Stage 및 상태 확인
 
 ```bash
 git add .
@@ -584,7 +607,7 @@ git status
 
 `.gitignore` 정상 적용 확인
 
-Git Author 설정 후 최초 Commit 생성
+최초 Commit
 
 ```text
 60449ee
@@ -600,7 +623,7 @@ feat: initialize platform dashboard and evidence API
 
 ---
 
-## 21. GitHub Repository
+## 22. GitHub Repository
 
 Organization
 
@@ -614,19 +637,25 @@ Repository
 who-broke-the-rack
 ```
 
-Remote
+Remote 연결
 
 ```bash
 git remote add origin https://github.com/MS-DCT/who-broke-the-rack.git
 ```
 
+Remote 등록 확인
+
+```bash
+git remote -v
+```
+
 ---
 
-## 22. GitHub Authentication
+## 23. GitHub Authentication
 
-공유 서버 인증을 위해 Deploy Key 방식 우선 확인
+공유 서버에서 GitHub 인증을 위해 SSH Deploy Key 방식 우선 확인
 
-GitHub Organization 정책
+Organization 정책
 
 ```text
 Deploy keys
@@ -635,7 +664,7 @@ Disabled by MS-DCT
 
 Deploy Key 사용 불가 확인
 
-Fine-grained PAT 방식으로 변경
+Fine-grained Personal Access Token 방식으로 변경
 
 Permission
 
@@ -644,18 +673,18 @@ Contents : Read and write
 Metadata : Read-only
 ```
 
-최초 인증 오류
+초기 인증 오류
 
 ```text
 Invalid username or token.
 Password authentication is not supported for Git operations.
 ```
 
-GitHub Account Password 대신 PAT 사용 후 인증 해결
+GitHub Account Password 대신 Fine-grained PAT 사용 후 인증 해결
 
 ---
 
-## 23. First Push
+## 24. First Push
 
 ```bash
 git push -u origin main
@@ -668,7 +697,9 @@ Push 성공
 branch 'main' set up to track 'origin/main'
 ```
 
-GitHub에서 다음 구조 확인
+Local `main` → `origin/main` Tracking 구성
+
+GitHub 업로드 확인
 
 ```text
 .gitignore
@@ -678,9 +709,9 @@ frontend/
 
 ---
 
-## 24. Secret Check
+## 25. Secret Check
 
-Public 전환 전 Secret 검사
+Repository Public 전환 전 Secret 검사
 
 ```bash
 git grep -inE 'password|passwd|secret|token|private.?key|BEGIN.*PRIVATE'
@@ -704,11 +735,11 @@ git ls-files | grep -E '\.pem$|\.key$|id_rsa|id_ed25519|who_broke_the_rack'
 출력 없음
 ```
 
-실제 Secret / Private Key Git 미포함 확인
+Secret / Private Key Git 미포함 확인
 
 ---
 
-## 25. Repository Public 전환
+## 26. Repository Public 전환
 
 GitHub Repository Visibility 변경
 
@@ -724,10 +755,21 @@ https://github.com/MS-DCT/who-broke-the-rack
 
 ---
 
+## 27. Documentation
+
+- GitHub Root `README.md` 구성
+- `docs/day1.md` 생성
+- A / B / C Day 1 작업 기록 영역 구성
+- C Day 1 실제 작업 내용 정리
+- README 요약 / Day별 상세 Work Log 분리
+
+---
+
 # ✅ C — Day 1 Result
 
 | Category | 완료 내용 |
 |---|---|
+| Server | `.206`, `.207` NIC / Data Plane / SSH 환경 구성 |
 | Development | Python / Node.js / npm 개발환경 구성 |
 | Backend | FastAPI + SQLite + SQLAlchemy |
 | Database | Incident / Evidence / Action |
@@ -740,6 +782,7 @@ https://github.com/MS-DCT/who-broke-the-rack
 | Git | Local Repository + `.gitignore` |
 | GitHub | Organization Repository + `main` Push |
 | Security | Secret / Private Key 검사 |
+| Documentation | README + `docs/day1.md` |
 | Repository | Public 전환 |
 
 ---
