@@ -158,3 +158,123 @@ h2 {
   color: white;
   border-radius: 8px;
 }
+
+
+
+
+/* =========================
+   Suspect Cards
+========================= */
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.section-title h2 {
+  margin-bottom: 6px;
+}
+
+.section-title p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.suspect-section {
+  margin-top: 48px;
+}
+
+.suspect-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.suspect-card {
+  min-height: 110px;
+  padding: 20px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #1e293b;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.suspect-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.suspect-status {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 정상 */
+.suspect-normal {
+  border-color: #14532d;
+}
+
+.suspect-status-normal {
+  background: #065f46;
+  color: #d1fae5;
+}
+
+/* 의심 */
+.suspect-suspect {
+  border-color: #9a3412;
+}
+
+.suspect-status-suspect {
+  background: #9a3412;
+  color: #ffedd5;
+}
+
+/* 조사 전 */
+.suspect-unknown {
+  border-color: #475569;
+}
+
+.suspect-status-unknown {
+  background: #475569;
+  color: #e2e8f0;
+}
+
+.evidence-count {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #334155;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .suspect-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .suspect-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.result-skip {
+  background: #475569;
+  color: #e2e8f0;
+}

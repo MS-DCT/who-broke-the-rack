@@ -6,10 +6,12 @@ function App() {
   const [evidence, setEvidence] = useState([]);
   const [error, setError] = useState("");
 
+  const CURRENT_INCIDENT = "DAY2-207";
+
   useEffect(() => {
     Promise.all([
       fetch("http://192.168.100.206:8000/servers"),
-      fetch("http://192.168.100.206:8000/evidence")
+      fetch("http://192.168.100.206:8000/evidence"),
     ])
       .then(async ([serversResponse, evidenceResponse]) => {
         if (!serversResponse.ok || !evidenceResponse.ok) {
@@ -26,6 +28,104 @@ function App() {
         setError(err.message);
       });
   }, []);
+
+  // Day 2 실제 Incident Evidence만 사용
+  const day2Evidence = evidence.filter(
+    (item) => item.incident_id === CURRENT_INCIDENT
+  );
+
+const getStatusFromItems = (items) => {
+  // SKIP은 상태 판정에서 제외
+  const validItems = items.filter(
+    (item) => item.result !== "SKIP"
+  );
+
+  if (validItems.length === 0) {
+    return "UNKNOWN";
+  }
+
+  if (validItems.some((item) => item.result === "FAIL")) {
+    return "SUSPECT";
+  }
+
+  if (validItems.some((item) => item.result === "WARN")) {
+    return "SUSPECT";
+  }
+
+  if (validItems.some((item) => item.result === "UNKNOWN")) {
+    return "UNKNOWN";
+  }
+
+  if (validItems.every((item) => item.result === "PASS")) {
+    return "NORMAL";
+  }
+
+  return "UNKNOWN";
+};
+
+  // Suspect Card별 Evidence 분류
+  const powerEvidence = day2Evidence.filter(
+    (item) =>
+      item.layer === "HARDWARE" &&
+      item.check_name.toLowerCase().includes("power")
+  );
+
+  const memoryEvidence = day2Evidence.filter(
+    (item) => item.check_name.toLowerCase().includes("memory")
+  );
+
+  const storageEvidence = day2Evidence.filter(
+    (item) =>
+      item.check_name.toLowerCase().includes("storage") ||
+      item.check_name.toLowerCase().includes("disk")
+  );
+
+  const networkEvidence = day2Evidence.filter(
+    (item) => item.layer === "NETWORK"
+  );
+
+  const osEvidence = day2Evidence.filter(
+    (item) =>
+      item.layer === "OS" &&
+      !item.check_name.toLowerCase().includes("memory")
+  );
+
+  const serviceEvidence = day2Evidence.filter(
+    (item) => item.layer === "SERVICE"
+  );
+
+  const suspects = [
+    {
+      name: "Power",
+      status: getStatusFromItems(powerEvidence),
+    },
+    {
+      name: "Memory",
+      status: getStatusFromItems(memoryEvidence),
+    },
+    {
+      name: "Storage",
+      status: getStatusFromItems(storageEvidence),
+    },
+    {
+      name: "Network",
+      status: getStatusFromItems(networkEvidence),
+    },
+    {
+      name: "OS",
+      status: getStatusFromItems(osEvidence),
+    },
+    {
+      name: "Service",
+      status: getStatusFromItems(serviceEvidence),
+    },
+  ];
+
+  const getStatusLabel = (status) => {
+    if (status === "NORMAL") return "정상";
+    if (status === "SUSPECT") return "의심";
+    return "조사 전";
+  };
 
   return (
     <div className="dashboard">
@@ -66,11 +166,49 @@ function App() {
         </div>
       </section>
 
+      <section className="suspect-section">
+        <div className="section-title">
+          <div>
+            <h2>Suspect Cards</h2>
+            <p>
+              Incident: <strong>{CURRENT_INCIDENT}</strong> / Target:{" "}
+              <strong>server-207</strong>
+            </p>
+          </div>
+        </div>
+
+        <div className="suspect-grid">
+          {suspects.map((suspect) => (
+            <div
+              className={`suspect-card suspect-${suspect.status.toLowerCase()}`}
+              key={suspect.name}
+            >
+              <span className="suspect-name">{suspect.name}</span>
+
+              <span
+                className={`suspect-status suspect-status-${suspect.status.toLowerCase()}`}
+              >
+                {getStatusLabel(suspect.status)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="evidence-section">
-        <h2>Evidence Timeline</h2>
+        <div className="section-title">
+          <div>
+            <h2>Evidence Timeline</h2>
+            <p>Real Diagnostic Evidence — {CURRENT_INCIDENT}</p>
+          </div>
+
+          <span className="evidence-count">
+            {day2Evidence.length} Evidence
+          </span>
+        </div>
 
         <div className="timeline">
-          {evidence.map((item, index) => (
+          {day2Evidence.map((item, index) => (
             <div className="evidence-card" key={index}>
               <div className="evidence-top">
                 <div>
