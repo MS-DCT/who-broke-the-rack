@@ -197,8 +197,7 @@ actions
 ## 6. FastAPI Backend
 
 `backend/main.py` 구성
-<img width="1918" height="1079" alt="스크린샷 2026-08-24 145748" src="https://github.com/user-attachments/assets/befd505a-78d9-4469-9bec-0fa414afa627" />
-<img width="1918" height="1079" alt="스크린샷 2026-08-24 145748" src="https://github.com/user-attachments/assets/5d3159e9-438b-4055-8f7f-02b998297dda" />
+
 <img width="1919" height="1078" alt="스크린샷 2026-08-24 145740" src="https://github.com/user-attachments/assets/eced05ca-4d59-4fa1-a7dc-6b87db784ce3" />
 
 ### API
