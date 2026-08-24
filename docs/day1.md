@@ -1,4 +1,4 @@
-# 📅 Day 1 — 2026-08-24
+# 📅 Day 1 — 2026-08-23
 
 Day 1 팀별 작업 기록
 
@@ -9,7 +9,7 @@ Day 1 팀별 작업 기록
 | Role | 담당 | Day 1 작업 |
 |---|---|---|
 | **A** | Hardware / Infrastructure | #8 서버(5,6,7 진행 예정) / iLO / NIC·네트워크 Baseline 구성 |
-| **B** | - | 작성 예정 |
+| **B** | Automation / Troubleshooting | Ansible 대상 서버 구성 + QSFP/네트워크 Baseline 수동 검증 + 수동 Evidence 확보 |
 | **C** | Platform / Visualization | `.206` / `.207` 서버 환경 구성 + FastAPI + SQLite + React Dashboard + GitHub 구성 |
 
 ---
