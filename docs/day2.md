@@ -9,7 +9,7 @@ Day 2 팀별 작업 기록
 | Role | 담당 | Day 2 작업 |
 |---|---|---|
 | **A** | - | 작성 예정 |
-| **B** | - | 작성 예정 |
+| **B** | Automation / Troubleshooting | Network/OS/Service 자동 진단 Role 구현 + 상태 판정 + Evidence JSON 자동 생성 |
 | **C** | - | 작성 예정 |
 
 ---
