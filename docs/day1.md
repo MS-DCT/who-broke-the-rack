@@ -117,6 +117,7 @@ Day 1 팀별 작업 기록
 ### Day 1 Outcome
 
 Day 1에서는 각 managed node의 NIC, Driver, Kernel Module, Link, IP, Route, Gateway 및 PXE 접근성을 수동으로 검증하여 정상 Baseline을 확보했다. 이 Baseline을 기준으로 Day 2에서는 동일 항목을 Ansible Diagnostic Role로 자동화하고, 결과를 JSON Evidence로 표준화한다.
+
 ---
 
 # 👤 C — Day 1
