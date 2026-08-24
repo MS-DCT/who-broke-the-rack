@@ -1,3 +1,4 @@
+<img width="1919" height="1078" alt="스크린샷 2026-08-24 145740" src="https://github.com/user-attachments/assets/5f3bf1cd-5765-4212-abb3-20ec39be4511" />
 # 📅 Day 1 — 2026-08-24
 
 Day 1 팀별 작업 기록
@@ -197,6 +198,9 @@ actions
 ## 6. FastAPI Backend
 
 `backend/main.py` 구성
+<img width="1918" height="1079" alt="스크린샷 2026-08-24 145748" src="https://github.com/user-attachments/assets/befd505a-78d9-4469-9bec-0fa414afa627" />
+<img width="1918" height="1079" alt="스크린샷 2026-08-24 145748" src="https://github.com/user-attachments/assets/5d3159e9-438b-4055-8f7f-02b998297dda" />
+<img width="1919" height="1078" alt="스크린샷 2026-08-24 145740" src="https://github.com/user-attachments/assets/eced05ca-4d59-4fa1-a7dc-6b87db784ce3" />
 
 ### API
 
@@ -495,6 +499,8 @@ Evidence Timeline
 ## 17. FastAPI ↔ React Integration
 
 최종 데이터 흐름 연결 확인
+
+<img width="1918" height="1079" alt="스크린샷 2026-08-24 145748" src="https://github.com/user-attachments/assets/3c7ff29a-14fa-4e3e-b7b3-88c1d121fd6e" />
 
 ```text
 SQLite
