@@ -1,3 +1,25 @@
+# 📅 Day 2 — 2026-08-24
+
+Day 2 팀별 작업 기록
+
+---
+
+## 📊 Team Progress
+
+| Role | 담당 | Day 2 작업 |
+|---|---|---|
+| **A** | - | 작성 예정 |
+| **B** | - | 작성 예정 |
+| **C** | - | 작성 예정 |
+
+---
+
+# 👤 A — Day 2
+
+> 작성 예정
+
+---
+
 # 👤 B — Day 2
 
 > Day 1 Baseline을 기준으로 network, OS, service 상태를 read-only로 자동 진단하고 호스트별 JSON Evidence와 역할 기반 판정 정책을 구현
@@ -51,4 +73,6 @@
 
 ---
 
-Day 3의 Decision Tree, Rule Engine, Recovery, Escalation, Timeline은 아직 구현되지 않았습니다.
+# 👤 C — Day 2
+
+> 작성 예정
