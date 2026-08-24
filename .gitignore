@@ -1,0 +1,19 @@
+# Python
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+# SQLite local DB
+backend/rack.db
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Secrets
+.env
+*.env
+
+# Editor / OS
+.vscode/
+.DS_Store
