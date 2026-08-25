@@ -7,7 +7,10 @@ import models
 from collector import collect_server_evidence
 from incident_controller import create_incident
 from timeline import get_incident_timeline
-
+from incident_workflow import (
+    run_incident_workflow,
+    IncidentRunnerError,
+)
 
 # SQLite DB 및 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -209,6 +212,41 @@ def incident_timeline(
         )
 
     except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@app.post("/incidents/{incident_id}/diagnose")
+def diagnose_incident(
+    incident_id: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        return run_incident_workflow(
+            db,
+            incident_id
+        )
+
+    except ValueError as e:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    except IncidentRunnerError as e:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        db.rollback()
+
         raise HTTPException(
             status_code=500,
             detail=str(e)
