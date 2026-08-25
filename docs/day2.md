@@ -320,11 +320,10 @@ Day 2에서는 Day 1에서 수동으로 확인했던 물리 NIC, Driver, Kernel 
 -  실제 Incident 기준 Evidence Timeline 구현
 -  최신 Diagnostic Evidence 19개 반영
 
----
 
 ## 1. 전체 데이터 흐름
 
-```text
+
 Ansible Diagnostic
         ↓
 Diagnostic JSON
@@ -347,7 +346,7 @@ React Dashboard
 | Incident ID | `DAY2-207` |
 | Diagnostic JSON | `evidence/day2/diagnostic/dca-target02.json` |
 
----
+
 
 ## 2. Evidence Importer 구현
 
@@ -378,7 +377,6 @@ details
 timestamp
 ```
 
----
 
 ## 3. Diagnostic Status 처리
 
@@ -406,7 +404,6 @@ B Diagnostic에서 사용하는 상태값을 Platform에서도 동일하게 유�
 
 Diagnostic JSON에는 별도의 Severity가 없기 때문에 Platform에서 Result 기준으로 Severity 생성
 
----
 
 ## 4. 최신 Evidence 갱신 처리
 
@@ -453,7 +450,6 @@ http_health     → SKIP
 | 기존 | 17개 |
 | 최신 | 19개 |
 
----
 
 ## 5. FastAPI Evidence 연동 확인
 
@@ -484,7 +480,6 @@ FastAPI
 
 ✅ Backend Evidence 연동 완료
 
----
 
 ## 6. Suspect Card 구현
 
@@ -503,11 +498,9 @@ Service
 
 ### 상태
 
-```text
 조사 전
 정상
 의심
-```
 
 ### 상태 판정 기준
 
@@ -522,7 +515,7 @@ Service
 
 > `SKIP`은 장애가 아니라 검사 대상이 설정되지 않았거나 해당 검사에 적용되지 않는 상태이므로 Suspect 판정에서 제외
 
----
+
 
 ## 7. 현재 Suspect 상태
 
@@ -541,7 +534,7 @@ Service
 
 NIC / IP / Gateway 자체 장애가 아니라 PXE Server Reachability가 `WARN` 상태
 
-```text
+
 PXE Server
 192.168.100.60
       ↓
@@ -558,7 +551,7 @@ Network = 의심
 
 ### 기존
 
-```text
+
 Mock Evidence + 실제 Evidence 혼합 표시
 
 
@@ -566,7 +559,7 @@ Mock Evidence + 실제 Evidence 혼합 표시
 
 현재 Incident인 `DAY2-207`만 필터링하여 실제 Diagnostic Evidence만 표시
 
-```text
+
 전체 Evidence
       ↓
 DAY2-207 Filter
@@ -594,7 +587,6 @@ DAY2-207 Filter
 
 ## 9. Dashboard 구성
 
-```text
 ┌──────────────────────┐
 │    Rack Overview     │
 └──────────────────────┘
@@ -612,12 +604,12 @@ DAY2-207 Filter
 
 프로젝트 대상 서버 4대 표시
 
-```text
+
 dca-target01
 dca-mgmt01
 dca-target02
 dca-spare01
-```
+
 
 ### Suspect Cards
 
@@ -677,23 +669,22 @@ dca-spare01
 - 정상 / 의심 / 조사 전 상태 디자인
 - `SKIP` Result Badge 디자인
 
----
+
 
 ## 12. GitHub Integration
 
 Day 2 C 작업 `main` 반영 완료
 
-```text
+
 feat: integrate day2 evidence and suspect cards
 
 
 반영 파일
 
-```text
 backend/import_day2.py
 frontend/src/App.jsx
 frontend/src/App.css
-```
+
 
 팀원 최신 변경사항을 반영한 뒤 Rebase하여 충돌 없이 `main` Push 완료
 
@@ -702,7 +693,7 @@ frontend/src/App.css
 
 Day 2에서는 Ansible에서 생성된 실제 Diagnostic JSON을 Platform의 SQLite DB와 FastAPI에 연동하여 자동 진단 결과가 Backend에서 Frontend까지 전달되는 흐름 구성
 
-```text
+
 Ansible
    ↓
 Evidence JSON
@@ -712,7 +703,6 @@ SQLite
 FastAPI
    ↓
 React Dashboard
-```
 
 ### 최종 구현 결과
 
@@ -726,14 +716,12 @@ React Dashboard
 
 ### 현재 Dashboard 상태
 
-```text
 Power    ⚪ 조사 전
 Memory   🟢 정상
 Storage  ⚪ 조사 전
 Network  🟠 의심
 OS       🟢 정상
 Service  🟢 정상
-```
 
 현재 `dca-target02`에서는 PXE Reachability 문제로 Network가 `의심` 상태이며, OS와 SSH Service는 실제 Diagnostic 결과를 기반으로 `정상` 상태로 표시
 
