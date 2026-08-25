@@ -1,0 +1,63 @@
+---
+- name: Collect diagnostic evidence for an incident
+  hosts: all
+  become: false
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate required incident diagnostic inputs
+      ansible.builtin.assert:
+        that:
+          - incident_id | default('') | string | trim | length > 0
+          - evidence_output_dir | default('') | string | trim | length > 0
+        fail_msg: >-
+          incident_id and evidence_output_dir are required. Pass both with
+          --extra-vars and restrict the target with --limit when appropriate.
+      run_once: true
+
+  roles:
+    - role: ../roles/network_diagnostic
+    - role: ../roles/os_diagnostic
+    - role: ../roles/service_diagnostic
+
+  post_tasks:
+    - name: Assemble incident evidence for host
+      ansible.builtin.set_fact:
+        incident_evidence:
+          incident_id: "{{ incident_id }}"
+          incident_started_at: "{{ incident_started_at | default(ansible_date_time.iso8601) }}"
+          host: "{{ inventory_hostname }}"
+          ansible_host: "{{ ansible_host | default(inventory_hostname) }}"
+          generated_at: "{{ ansible_date_time.iso8601 }}"
+          results:
+            - category: network
+              status: "{{ 'FAIL' if 'FAIL' in network_statuses else ('UNKNOWN' if 'UNKNOWN' in network_statuses else ('WARN' if 'WARN' in network_statuses else ('PASS' if 'PASS' in network_statuses else 'SKIP'))) }}"
+              checks: "{{ network_diagnostic_evidence.checks }}"
+            - category: os
+              status: "{{ 'FAIL' if 'FAIL' in os_statuses else ('UNKNOWN' if 'UNKNOWN' in os_statuses else ('WARN' if 'WARN' in os_statuses else ('PASS' if 'PASS' in os_statuses else 'SKIP'))) }}"
+              checks: "{{ os_diagnostic_evidence.checks }}"
+            - category: service
+              status: "{{ 'FAIL' if 'FAIL' in service_statuses else ('UNKNOWN' if 'UNKNOWN' in service_statuses else ('WARN' if 'WARN' in service_statuses else ('PASS' if 'PASS' in service_statuses else 'SKIP'))) }}"
+              checks: "{{ service_diagnostic_evidence.checks }}"
+      vars:
+        network_statuses: "{{ network_diagnostic_evidence.checks | map(attribute='status') | list }}"
+        os_statuses: "{{ os_diagnostic_evidence.checks | map(attribute='status') | list }}"
+        service_statuses: "{{ service_diagnostic_evidence.checks | map(attribute='status') | list }}"
+      changed_when: false
+
+    - name: Ensure incident evidence output directory exists
+      ansible.builtin.file:
+        path: "{{ evidence_output_dir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Save incident evidence JSON on controller
+      ansible.builtin.copy:
+        content: "{{ incident_evidence | to_nice_json }}\n"
+        dest: "{{ evidence_output_dir }}/{{ inventory_hostname }}.json"
+        mode: "0600"
+      delegate_to: localhost
+      become: false

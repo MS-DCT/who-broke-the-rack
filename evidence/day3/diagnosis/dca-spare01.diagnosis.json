@@ -1,0 +1,47 @@
+{
+  "incident_id": "DIAG-dca-spare01-2026-08-24T06-39-50Z",
+  "server_id": "dca-spare01",
+  "host": "dca-spare01",
+  "timestamp": "2026-08-24T06:39:50Z",
+  "diagnosis_status": "INSUFFICIENT_EVIDENCE",
+  "rule_id": null,
+  "root_cause": "Insufficient evidence to determine a root cause",
+  "matched_evidence": [],
+  "recommended_action": "Collect or explicitly verify the checks listed in evidence_gaps.",
+  "severity": "UNKNOWN",
+  "evidence_gaps": [
+    {
+      "layer": "hardware",
+      "check_name": "system_health",
+      "reason": "MISSING"
+    },
+    {
+      "layer": "hardware",
+      "check_name": "power_state",
+      "reason": "MISSING"
+    },
+    {
+      "layer": "hardware",
+      "check_name": "storage_health",
+      "reason": "MISSING"
+    },
+    {
+      "layer": "boot",
+      "check_name": "post_status",
+      "reason": "MISSING"
+    },
+    {
+      "layer": "boot",
+      "check_name": "boot_or_os_access",
+      "reason": "MISSING"
+    },
+    {
+      "layer": "service",
+      "check_name": "http_health",
+      "reason": "NOT_CONFIRMED_PASS",
+      "observed_results": [
+        "SKIP"
+      ]
+    }
+  ]
+}
