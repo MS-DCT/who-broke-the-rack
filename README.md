@@ -18,7 +18,8 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 2 — 2026-08-24** | 작성 예정 | 작성 예정 | Diagnostic Evidence DB 연동 + Suspect Card + Evidence Timeline 구현|
+| **Day 2 — 2026-08-24** | 작성 예정 | Network/OS/Service 자동 진단 Role 구현 + 상태 판정 + Evidence JSON 자동 생성
+ | Diagnostic Evidence DB 연동 + Suspect Card + Evidence Timeline 구현|
 
 ➡️ [Day 2 상세 작업 기록](docs/day2.md)
 
@@ -28,7 +29,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 3 — 2026-08-25** | 작성 예정 | 작성 예정 | 작성 예정 |
+| **Day 3 — 2026-08-25** | 작성 예정 | Rule 기반 diagnosis Engine 구현 | 작성 예정 |
 
 ➡️ [Day 3 상세 작업 기록](docs/day3.md)
 
