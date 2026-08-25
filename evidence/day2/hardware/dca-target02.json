@@ -1,0 +1,36 @@
+{
+  "host": "dca-target02",
+  "server_id": "server-207",
+  "generated_at": "2026-08-25T11:29:00+09:00",
+  "source": "manual_ilo_check",
+  "category": "hardware",
+  "checks": [
+    {
+      "name": "ilo_reachability",
+      "status": "PASS",
+      "detail": "iLO access confirmed"
+    },
+    {
+      "name": "power_state",
+      "status": "PASS",
+      "detail": "Power ON"
+    },
+    {
+      "name": "system_health",
+      "status": "PASS",
+      "detail": "System Health OK"
+    },
+    {
+      "name": "memory_health",
+      "status": "PASS",
+      "detail": "Installed DIMMs are Good and In Use"
+    },
+    {
+      "name": "storage_health",
+      "status": "PASS",
+      "detail": "Controller, Logical Drive, and Physical Drive status are all OK"
+    }
+  ],
+  "status": "PASS"
+}
+
