@@ -18,8 +18,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 2 — 2026-08-24** | 작성 예정 | 작성 예정 | Diagnostic Evidence DB 연동 + Suspect Card + Evidence Timeline 구현
-|
+| **Day 2 — 2026-08-24** | 작성 예정 | 작성 예정 | Diagnostic Evidence DB 연동 + Suspect Card + Evidence Timeline 구현|
 
 ➡️ [Day 2 상세 작업 기록](docs/day2.md)
 
