@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from database import Base, engine, SessionLocal
 import models
+from collector import collect_server_evidence
 
 # SQLite DB 및 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -130,3 +131,34 @@ def get_actions(db: Session = Depends(get_db)):
             for a in actions
         ]
     }
+
+@app.post("/collect/{server_id}")
+def collect_evidence(
+    server_id: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        return collect_server_evidence(
+            db,
+            server_id
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
