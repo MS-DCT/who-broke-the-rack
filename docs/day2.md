@@ -10,7 +10,7 @@ Day 2 팀별 작업 기록
 |---|---|---|
 | **A** | - | 작성 예정 |
 | **B** | Automation / Troubleshooting | Network/OS/Service 자동 진단 Role 구현 + 상태 판정 + Evidence JSON 자동 생성 |
-| **C** | - | 작성 예정 |
+| **C** | Platform / Visualization | Diagnostic Evidence DB 연동 + Suspect Card + Evidence Timeline 구현 |
 
 ---
 
@@ -306,38 +306,31 @@ Day 2에서는 Day 1에서 수동으로 확인했던 물리 NIC, Driver, Kernel 
 
 ---
 
-# 👤 C — Day 2
-
 👤 C — Day 2
-
-B가 생성한 Network / OS / Service Diagnostic JSON Evidence를 Platform DB에 연동하고, 실제 진단 결과를 기반으로 Suspect Card와 Evidence Timeline 구현
-
-📌 Day 2 작업 요약
 
 담당: Platform / Visualization
 
 주요 작업
+- Diagnostic Evidence JSON → SQLite DB 연동
+- 실제 Evidence FastAPI 연동 확인
+- 최신 Evidence 재수집 시 기존 데이터 갱신 처리
+- PASS / WARN / FAIL / UNKNOWN / SKIP 상태 처리
+- React Suspect Card 구현
+- 실제 Incident 기준 Evidence Timeline 구현
+- 최신 B Diagnostic Evidence 반영
 
-Diagnostic Evidence JSON → SQLite DB 연동
-실제 Evidence FastAPI 연동 확인
-최신 Evidence 재수집 시 DB 갱신 구조 구현
-PASS / WARN / FAIL / UNKNOWN / SKIP 상태 처리
-React Suspect Card 구현
-실제 Incident 기준 Evidence Timeline 구현
-최신 B Diagnostic Evidence 반영
-GitHub main 통합 완료
 1. Day 2 Evidence Integration
 
-B의 Ansible 자동 진단 결과를 Platform에서 사용할 수 있도록 Evidence Import 구조 구성
+B가 생성한 Ansible Diagnostic JSON을 Platform에서 사용할 수 있도록 Evidence Import 구조 구성
 
 연동 대상
-
 evidence/day2/diagnostic/dca-target02.json
 
 Platform 대상
 Host: dca-target02
 Server ID: server-207
 Incident ID: DAY2-207
+
 전체 데이터 흐름
 
 Ansible Diagnostic
@@ -352,19 +345,23 @@ FastAPI /evidence
 ↓
 React Dashboard
 
+
 2. Evidence Importer 구현
 
 backend/import_day2.py 구현
 
-B가 생성한 Diagnostic JSON을 기존 Platform Evidence DB 구조에 맞게 변환
+Diagnostic JSON의 데이터를 기존 Evidence DB 구조에 맞춰 변환
 
 JSON → DB Mapping
+
 category → layer
 name → check_name
 status → result
 detail → details
 generated_at → timestamp
+
 Evidence DB 구조
+
 incident_id
 server_id
 layer
@@ -373,6 +370,8 @@ result
 severity
 details
 timestamp
+
+
 3. Diagnostic Status 처리
 
 B Diagnostic에서 사용하는 상태값을 Platform에서도 동일하게 유지
@@ -383,163 +382,140 @@ FAIL
 UNKNOWN
 SKIP
 
-초기 구현에서는 SKIP을 UNKNOWN으로 변환했으나, 최신 Diagnostic Schema에 맞춰 SKIP을 별도 상태로 유지하도록 수정
+초기 구현에서는 SKIP을 UNKNOWN으로 변환했으나,
+최신 Diagnostic Schema에 맞춰 SKIP을 별도 상태로 유지하도록 수정
 
 Severity Mapping
+
 PASS → INFO
 WARN → WARN
 FAIL → HIGH
 UNKNOWN → WARN
 SKIP → INFO
 
-Diagnostic JSON에는 별도의 Severity 값이 없기 때문에 Platform에서 Result 기준으로 Severity 생성
 
 4. 최신 Evidence 갱신 처리
 
-초기 Import 방식에서는 동일한 Evidence가 DB에 이미 존재할 경우 중복 삽입을 제외하도록 구성
+초기 Import에서는 동일한 Evidence가 존재하면 중복 삽입을 제외하도록 구성
 
-하지만 B가 Diagnostic을 다시 실행하면서 기존 Check의 결과값이 변경될 수 있는 문제 확인
+하지만 Diagnostic이 재실행되면서 기존 Check 결과가 변경되는 경우
+기존 DB 값이 갱신되지 않는 문제 확인
 
 실제 변경 사례
 
 port_reachability
-
 SKIP → PASS
 
 firewall_state
-
 UNKNOWN → PASS
 
-Service Diagnostic도 기존 단일 SKIP 상태에서 실제 SSH 진단 결과로 변경
-
+Service Diagnostic
 process → PASS
 listening_port → PASS
 http_health → SKIP
+
 해결
 
-기존 DAY2-207 Evidence를 먼저 삭제하고 최신 Diagnostic JSON을 다시 Import하도록 변경
-
-기존 Evidence 삭제
+기존 DAY2-207 Evidence 삭제
 ↓
-최신 JSON Parsing
+최신 Diagnostic JSON Parsing
 ↓
 최신 Evidence 재저장
 
 결과
+
 기존 Evidence: 17개
 최신 Evidence: 19개
+
+
 5. FastAPI Evidence 연동 확인
 
-SQLite에 저장된 실제 Diagnostic Evidence가 기존 FastAPI를 통해 정상 조회되는지 확인
+SQLite에 저장된 실제 Diagnostic Evidence가 FastAPI를 통해 정상 조회되는지 확인
 
 API
-
 GET /evidence
 
 확인 결과
+
 Incident ID: DAY2-207
 Server ID: server-207
-NETWORK Evidence 정상 반환
-OS Evidence 정상 반환
-SERVICE Evidence 정상 반환
+NETWORK / OS / SERVICE Evidence 정상 반환
 최신 Evidence 19개 정상 반환
 
-즉,
-
-Diagnostic JSON
-→ SQLite
-→ FastAPI
-
-연동 정상 확인
 
 6. Suspect Card 구현
 
-React Dashboard에 실제 Evidence 결과를 기반으로 상태를 표시하는 Suspect Card 추가
+React Dashboard에 실제 Evidence를 기반으로 상태를 표시하는 Suspect Card 추가
 
-Suspect 영역
+구성 영역
+
 Power
 Memory
 Storage
 Network
 OS
 Service
+
 상태
+
 조사 전
 정상
 의심
+
 상태 판정 기준
 
-FAIL 존재
-→ 의심
+FAIL 존재 → 의심
+WARN 존재 → 의심
+UNKNOWN 존재 → 조사 전
+전체 PASS → 정상
+Evidence 없음 → 조사 전
+SKIP → 상태 판정 제외
 
-WARN 존재
-→ 의심
+SKIP은 장애가 아니라 검사 대상이 설정되지 않았거나
+해당 검사에 적용되지 않는 상태이므로 장애 판정에서 제외
 
-UNKNOWN 존재
-→ 조사 전
-
-전체 PASS
-→ 정상
-
-Evidence 없음
-→ 조사 전
-
-SKIP
-→ 상태 판정에서 제외
-
-SKIP은 장애가 아니라 검사 대상이 설정되지 않았거나 해당 검사에 적용되지 않는 상태이므로 장애 판정에서 제외
 
 7. 현재 Suspect 상태
-DAY2-207 / server-207
 
-Power — 조사 전
+DAY2-207 / server-207 기준
 
-Hardware Power Evidence 미수집
+Power → 조사 전
+- Hardware Power Evidence 미수집
 
-Memory — 정상
+Memory → 정상
+- memory = PASS
 
-memory = PASS
+Storage → 조사 전
+- Storage Hardware Evidence 미수집
 
-Storage — 조사 전
+Network → 의심
+- pxe_reachability = WARN
 
-Storage Hardware Evidence 미수집
+OS → 정상
+- OS Diagnostic PASS
 
-Network — 의심
+Service → 정상
+- SSH Process PASS
+- TCP 22 Listening PASS
+- HTTP Health SKIP
 
-pxe_reachability = WARN
+Network가 의심으로 표시되는 이유는
+NIC / IP / Gateway 자체 장애가 아니라
+PXE Server 192.168.100.60 Reachability가 WARN 상태이기 때문
 
-OS — 정상
-
-OS Diagnostic 결과 PASS
-
-Service — 정상
-
-SSH Process PASS
-TCP 22 Listening PASS
-HTTP Health는 미설정으로 SKIP
-Network 의심 원인
-
-Data Plane, NIC, IP, Gateway 자체의 장애가 아니라
-
-PXE Server 192.168.100.60 Reachability = WARN
-
-상태로 인해 Network Suspect Card가 의심으로 표시
 
 8. Evidence Timeline 구현
 
-기존에는 Day 1 Mock Evidence와 실제 Evidence가 함께 표시됨
+기존에는 Mock Evidence와 실제 Evidence가 함께 표시됨
 
-Day 2에서는 현재 Incident인
-
-DAY2-207
-
-만 필터링하여 실제 Diagnostic Evidence만 표시하도록 수정
+Day 2에서는 현재 Incident인 DAY2-207만 필터링하여
+실제 Diagnostic Evidence만 표시하도록 수정
 
 현재 Timeline
-
 19 Evidence
 
-Evidence Card 표시 정보
+각 Evidence Card 표시 정보
+
 Layer
 Check Name
 Result
@@ -548,12 +524,11 @@ Server ID
 Severity
 Detail
 
-SKIP 상태도 별도 Badge로 표시
+SKIP 상태도 별도 Result Badge로 표시
+
 
 9. Dashboard 구성
 
-현재 Dashboard 구조
-
 Rack Overview
 ↓
 Suspect Cards
@@ -561,80 +536,67 @@ Suspect Cards
 Evidence Timeline
 
 Rack Overview
+- dca-target01
+- dca-mgmt01
+- dca-target02
+- dca-spare01
 
-프로젝트 대상 서버 4대 표시
-
-dca-target01
-dca-mgmt01
-dca-target02
-dca-spare01
 Suspect Cards
-
-현재 Incident Evidence를 요약하여 장애 가능성이 있는 영역 표시
+- 현재 Incident Evidence를 요약하여 장애 의심 영역 표시
 
 Evidence Timeline
+- 실제 Diagnostic Check 결과와 Detail 표시
 
-실제 Diagnostic Check와 상세 결과 확인
+Raw JSON이나 터미널 로그를 직접 확인하지 않아도
+Dashboard에서 현재 Incident 상태와 실제 Evidence 확인 가능
 
-이를 통해 Raw JSON이나 터미널 로그를 직접 확인하지 않아도 Dashboard에서 현재 Incident의 상태와 실제 Evidence 확인 가능
 
 10. Test / Verification
+
 Backend
-최신 dca-target02.json Parsing 확인
-기존 DAY2-207 Evidence 삭제 확인
-최신 Evidence 19개 저장 확인
-PASS / WARN / FAIL / UNKNOWN / SKIP 저장 확인
-FastAPI /evidence 정상 반환 확인
+- 최신 dca-target02.json Parsing 확인
+- 기존 DAY2-207 Evidence 삭제 확인
+- 최신 Evidence 19개 저장 확인
+- PASS / WARN / FAIL / UNKNOWN / SKIP 저장 확인
+- FastAPI /evidence 정상 반환 확인
+
 Frontend
-DAY2-207 Evidence 필터링 확인
-Suspect Card 6개 표시 확인
-Memory 정상 확인
-Network 의심 확인
-OS 정상 확인
-Service 정상 확인
-SKIP 상태 판정 제외 확인
-Evidence Timeline 19개 표시 확인
+- DAY2-207 Evidence 필터링 확인
+- Suspect Card 6개 표시 확인
+- Memory 정상 확인
+- Network 의심 확인
+- OS 정상 확인
+- Service 정상 확인
+- SKIP 상태 판정 제외 확인
+- Evidence Timeline 19개 표시 확인
+
+
 11. 수정 파일
+
 Backend
-
 backend/import_day2.py
+- Diagnostic JSON Parsing
+- Evidence DB 저장
+- Status / Severity Mapping
+- 최신 Evidence Refresh 처리
 
-Diagnostic JSON Parsing
-Evidence DB 저장
-Status / Severity Mapping
-최신 Evidence Refresh 처리
 Frontend
-
 frontend/src/App.jsx
-
-DAY2-207 Incident 필터링
-Suspect Card 상태 계산
-실제 Evidence Timeline 표시
+- DAY2-207 Incident 필터링
+- Suspect Card 상태 계산
+- 실제 Evidence Timeline 표시
 
 frontend/src/App.css
+- Suspect Card UI
+- 정상 / 의심 / 조사 전 상태 디자인
+- SKIP Result Badge 디자인
 
-Suspect Card UI
-정상 / 의심 / 조사 전 상태 디자인
-SKIP Result Badge 디자인
-12. GitHub Integration
 
-Day 2 C 작업 GitHub main 반영 완료
+12. Day 2 Outcome
 
-Commit:
-
-feat: integrate day2 evidence and suspect cards
-
-반영 파일
-
-backend/import_day2.py
-frontend/src/App.jsx
-frontend/src/App.css
-
-팀원 변경사항을 먼저 최신화한 뒤 Rebase하여 충돌 없이 main Push 완료
-
-✅ Day 2 Outcome
-
-Day 2에서는 Ansible이 생성한 실제 Diagnostic JSON을 Platform의 SQLite DB와 FastAPI에 연동하여 자동 진단 결과가 Backend에서 Frontend까지 전달되는 흐름을 구성
+Ansible에서 생성된 실제 Diagnostic JSON을
+Platform의 SQLite DB와 FastAPI에 연동하여
+자동 진단 결과가 Backend에서 Frontend까지 전달되는 흐름 구성
 
 Ansible
 ↓
@@ -646,7 +608,7 @@ FastAPI
 ↓
 React Dashboard
 
-또한 실제 Evidence를 기반으로
+실제 Evidence를 기반으로
 
 Power / Memory / Storage / Network / OS / Service
 
@@ -656,6 +618,8 @@ Power / Memory / Storage / Network / OS / Service
 
 상태를 Dashboard에서 확인할 수 있도록 구현
 
-현재 dca-target02에서는 PXE Reachability 문제로 Network가 의심 상태, OS와 SSH Service는 실제 Diagnostic 결과에 따라 정상 상태로 표시
+현재 dca-target02에서는 PXE Reachability 문제로 Network가 의심 상태,
+OS와 SSH Service는 실제 Diagnostic 결과를 기반으로 정상 상태 표시
 
-이를 통해 Day 3에서 구현할 Diagnosis Engine과 Incident Evidence Timeline이 사용할 실제 Platform 데이터 연동 기반 마련
+Day 3 Diagnosis Engine과 Incident Evidence Timeline 구현에 사용할
+실제 Platform 데이터 연동 기반 마련
