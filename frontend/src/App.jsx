@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import IncidentPanel from "./IncidentPanel";
 
 function App() {
   const [servers, setServers] = useState([]);
@@ -135,6 +136,8 @@ const getStatusFromItems = (items) => {
       </header>
 
       {error && <div className="error">{error}</div>}
+
+      <IncidentPanel />
 
       <section>
         <h2>Rack Overview</h2>
