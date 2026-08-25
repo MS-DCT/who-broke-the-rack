@@ -308,8 +308,6 @@ Day 2에서는 Day 1에서 수동으로 확인했던 물리 NIC, Driver, Kernel 
 
 # 👤 C — Day 2
 
-# 👤 C — Day 2
-
 > B가 생성한 Network / OS / Service Diagnostic JSON Evidence를 Platform DB에 연동하고, 실제 진단 결과를 기반으로 Suspect Card와 Evidence Timeline 구현
 
 ---
