@@ -550,9 +550,9 @@ pxe_reachability
 WARN
       ↓
 Network = 의심
-```
 
----
+
+
 
 ## 8. Evidence Timeline 구현
 
@@ -560,7 +560,7 @@ Network = 의심
 
 ```text
 Mock Evidence + 실제 Evidence 혼합 표시
-```
+
 
 ### 변경
 
@@ -572,7 +572,7 @@ Mock Evidence + 실제 Evidence 혼합 표시
 DAY2-207 Filter
       ↓
 실제 Diagnostic Evidence
-```
+
 
 ### 현재 Timeline
 
@@ -590,7 +590,7 @@ DAY2-207 Filter
 
 `SKIP` 상태도 별도 Result Badge로 구분하여 표시
 
----
+
 
 ## 9. Dashboard 구성
 
@@ -606,7 +606,7 @@ DAY2-207 Filter
 ┌──────────────────────┐
 │  Evidence Timeline   │
 └──────────────────────┘
-```
+
 
 ### Rack Overview
 
@@ -629,7 +629,6 @@ dca-spare01
 
 이를 통해 Raw JSON 또는 터미널 로그를 직접 확인하지 않고 Dashboard에서 현재 Incident 상태와 실제 Evidence 확인 가능
 
----
 
 ## 10. Test / Verification
 
@@ -652,7 +651,6 @@ dca-spare01
 - `SKIP` 상태 Suspect 판정 제외 확인
 - Evidence Timeline 19개 표시 확인
 
----
 
 ## 11. 수정 파일
 
@@ -687,7 +685,7 @@ Day 2 C 작업 `main` 반영 완료
 
 ```text
 feat: integrate day2 evidence and suspect cards
-```
+
 
 반영 파일
 
@@ -699,7 +697,6 @@ frontend/src/App.css
 
 팀원 최신 변경사항을 반영한 뒤 Rebase하여 충돌 없이 `main` Push 완료
 
----
 
 ## ✅ Day 2 Outcome
 
