@@ -39,3 +39,25 @@ class Action(Base):
     status = Column(String, nullable=False)
     details = Column(Text, nullable=True)
     timestamp = Column(DateTime, server_default=func.now())
+
+class Diagnosis(Base):
+    __tablename__ = "diagnoses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    incident_id = Column(String, index=True, nullable=False)
+
+    rule_id = Column(String, nullable=True)
+    root_cause = Column(String, nullable=True)
+
+    matched_evidence = Column(Text, nullable=True)
+
+    recommended_action = Column(String, nullable=True)
+    severity = Column(String, nullable=True)
+
+    diagnosis_status = Column(String, nullable=True)
+    evidence_gaps = Column(Text, nullable=True)
+
+    timestamp = Column(
+        DateTime,
+        server_default=func.now()
+    )

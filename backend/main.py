@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 from database import Base, engine, SessionLocal
 import models
 from collector import collect_server_evidence
+from incident_controller import create_incident
+from timeline import get_incident_timeline
+
 
 # SQLite DB 및 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -158,6 +161,54 @@ def collect_evidence(
     except Exception as e:
         db.rollback()
 
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@app.post("/incidents/start/{server_id}")
+def start_incident(
+    server_id: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        return create_incident(
+            db,
+            server_id
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@app.get("/incidents/{incident_id}/timeline")
+def incident_timeline(
+    incident_id: str,
+    db: Session = Depends(get_db)
+):
+    try:
+        return get_incident_timeline(
+            db,
+            incident_id
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
+    except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=str(e)
