@@ -306,7 +306,7 @@ Day 2에서는 Day 1에서 수동으로 확인했던 물리 NIC, Driver, Kernel 
 
 ---
 
-👤 C — Day 2
+# 👤 C — Day 2
 
 담당: Platform / Visualization
 
