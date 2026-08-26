@@ -8,7 +8,7 @@ Day 2 팀별 작업 기록
 
 | Role | 담당 | Day 2 작업 |
 |---|---|---|
-| **A** | Hardware / Infrastructure | 작성 예정 |
+| **A** | Hardware / Infrastructure | Redfish 기반 Hardware/POST Evidence Collector 구현 + 상태 판정 + 다중 서버 Evidence JSON 수집 |
 | **B** | Automation / Troubleshooting | Network/OS/Service 자동 진단 Role 구현 + 상태 판정 + Evidence JSON 자동 생성 |
 | **C** | Platform / Visualization | Diagnostic Evidence DB 연동 + Suspect Card + Evidence Timeline 구현 |
 
@@ -16,7 +16,163 @@ Day 2 팀별 작업 기록
 
 # 👤 A — Day 2
 
-> 작성 예정
+> iLO Redfish API 기반 Hardware / POST Evidence Collector를 구현, 실제 물리 서버를 대상으로 다중 서버 수집 및 전원 OFF / ON 상태 변화 테스트를 수행
+
+## Hardware / POST Evidence Collector 구축
+
+장애 발생 시 물리 서버의 Hardware / POST 상태를 자동으로 수집할 수 있도록 iLO Redfish API 기반 Hardware Evidence Collector를 구현
+
+### 1. Redfish 기반 Hardware Evidence 수집
+
+`automation/hardware/hardware_collector.py`를 구현하여 실제 서버의 iLO Redfish API에서 Hardware 상태를 자동으로 수집하도록 구성
+
+**수집 항목**
+
+- iLO Reachability
+- Power State
+- System Health
+- Memory Health
+- Storage Health
+- Smart Array Controller Health
+- Logical Drive Health
+- Physical Drive Health
+- POST State
+- Boot / OS State
+- IML Event Log
+
+### 2. Evidence 상태 판정 기준 적용
+
+수집된 Hardware Evidence에 공통 상태 판정 기준을 적용
+
+- `PASS` : 현재 상태가 명시적으로 정상
+- `WARN` : 현재 동작은 가능하지만 Warning / Degraded 상태
+- `FAIL` : 현재 장애 또는 필수 조건 실패
+- `UNKNOWN` : 미수집, 조회 실패, 권한 문제 또는 상태 확인 불가
+- `SKIP` : 해당 서버 또는 현재 상태에서는 검사를 수행하지 않음
+
+각 Evidence는 다음 형식으로 생성하도록 구성
+
+```json
+{
+  "result": "PASS",
+  "value": "OK",
+  "detail": "Health=OK, State=Enabled",
+  "source": "/redfish/v1/Systems/1/"
+}
+```
+### 3. Hardware Evidence 공통 JSON 포맷 적용
+
+B / C 영역과의 연동을 고려하여 Hardware Collector의 출력 형식을 공통 Evidence 포맷으로 구성
+
+```json
+{
+  "incident_id": null,
+  "server_id": "server-208",
+  "host": "dca-spare01",
+  "timestamp": "ISO 8601 수집 시각",
+  "category": "hardware",
+  "source": "redfish",
+  "evidence": {}
+}
+```
+IML은 과거 이벤트가 현재 장애로 오인되지 않도록 현재 상태 Evidence와 분리하여 iml_events 배열로 저장하도록 구성
+
+### 4. 다중 서버 Hardware Evidence 수집 지원
+
+하나의 Collector에서 여러 서버의 Hardware Evidence를 수집할 수 있도록 구성
+
+- `server-205` → `dca-target01`
+- `server-207` → `dca-target02`
+- `server-208` → `dca-spare01`
+
+`--server-id` 옵션을 통해 수집 대상 서버를 선택할 수 있음
+
+```bash
+python3 automation/hardware/hardware_collector.py \
+  --server-id server-208
+```
+
+### 5. 실제 서버 Hardware Evidence 수집 테스트
+
+실제 iLO에 Redfish API로 접근하여 Hardware Evidence 수집을 테스트
+
+정상 상태에서 다음 항목이 정상적으로 수집되는 것을 확인
+
+- iLO Reachability → `PASS`
+- Power State → `PASS / On`
+- System Health → `PASS / OK`
+- POST State → `PASS / FinishedPost`
+- Memory Health → `PASS / OK`
+- Storage Health → `PASS / OK`
+- Smart Array P440ar Controller → `PASS / OK`
+- RAID 0 Logical Drive → `PASS / OK`
+- SATA HDD Physical Drive → `PASS / OK`
+
+Boot / OS 접근 상태의 경우 Redfish `HostCorrelation`에서 사용할 수 있는 OS IP 정보를 제공하지 않아 `UNKNOWN / NOT_VERIFIED`로 처리
+
+OS 접근 여부는 이후 Network / OS Probe에서 별도로 검증하도록 역할을 분리
+
+### 6. 서버 전원 OFF / ON 상태 변화 테스트
+
+`server-208 (dca-spare01)`을 이용하여 실제 서버 전원 상태 변화에 따라 Evidence가 변경되는지 테스트
+
+**전원 OFF 상태**
+
+- Power State → `WARN / Off`
+- System Health → `FAIL / Disabled`
+- POST State → `SKIP / PowerOff`
+- Memory Health → `UNKNOWN`
+
+**전원 ON 및 부팅 완료 후**
+
+- Power State → `PASS / On`
+- System Health → `PASS / OK`
+- POST State → `PASS / FinishedPost`
+- Memory Health → `PASS / OK`
+
+이를 통해 Collector가 실제 서버의 상태 변화에 따라 Hardware / POST Evidence를 정상적으로 수집하고 판정하는 것을 확인
+
+### 7. Evidence JSON 생성 및 검증
+
+서버별 실제 Hardware Evidence JSON을 생성
+```text
+evidence/day2/hardware/dca-target01.json
+evidence/day2/hardware/dca-target02.json
+evidence/day2/hardware/dca-spare01.json
+```
+
+`--output` 옵션을 사용하면 특정 시점의 Evidence를 별도 JSON 파일로 보존할 수 있도록 구성
+
+생성된 JSON은 `json.tool`을 이용하여 유효성을 검증
+
+```bash
+python3 -m json.tool \
+  evidence/day2/hardware/dca-spare01.json > /dev/null \
+  && echo "JSON VALID"
+```
+
+**결과**
+
+```text
+JSON VALID
+```
+
+### 8. GitHub 반영
+
+Redfish 기반 Hardware / Boot Evidence Collector와 실제 서버에서 수집한 Evidence JSON을 GitHub에 반영
+
+**반영 파일**
+
+- `automation/hardware/hardware_collector.py`
+- `evidence/day2/hardware/dca-target01.json`
+- `evidence/day2/hardware/dca-target02.json`
+- `evidence/day2/hardware/dca-spare01.json`
+
+**Commit**
+
+```text
+Redfish 기반 Hardware/Boot Evidence Collector 구현 및 다중 서버 수집 결과 반영
+```
 
 ---
 
