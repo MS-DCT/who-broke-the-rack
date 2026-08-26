@@ -38,7 +38,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 4 — 2026-08-26** | 작성 예정 | 작성 예정 | 작성예정 |
+| **Day 4 — 2026-08-26** | 작성 예정 | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증 | 작성예정 |
 
 ➡️ [Day 4 상세 작업 기록](docs/day4.md)
 
