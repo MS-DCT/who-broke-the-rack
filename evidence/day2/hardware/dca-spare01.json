@@ -1,0 +1,252 @@
+{
+  "incident_id": null,
+  "server_id": "server-208",
+  "host": "dca-spare01",
+  "timestamp": "2026-08-26T02:04:32.216319+00:00",
+  "category": "hardware",
+  "source": "redfish",
+  "evidence": {
+    "ilo_reachability": {
+      "result": "PASS",
+      "value": "REACHABLE",
+      "detail": "iLO 192.168.0.208 Redfish API access confirmed",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "power_state": {
+      "result": "PASS",
+      "value": "On",
+      "detail": "PowerState=On",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "system_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "Health=OK, State=Enabled",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "post_state": {
+      "result": "PASS",
+      "value": "FinishedPost",
+      "detail": "POST completed successfully",
+      "source": "/redfish/v1/Systems/1/Oem/Hp/PostState"
+    },
+    "boot_os_state": {
+      "result": "UNKNOWN",
+      "value": "NOT_VERIFIED",
+      "detail": "POST state collected, but Redfish HostCorrelation does not provide a usable OS IP address. OS reachability requires a separate network/OS probe.",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "memory_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "Health=OK, TotalMemory=192 GiB",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "storage_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "Health=OK, State=None",
+      "source": "/redfish/v1/Systems/1/SmartStorage/"
+    },
+    "controller_0_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "Model=Smart Array P440ar Controller, Health=OK, State=Enabled",
+      "source": "/redfish/v1/Systems/1/SmartStorage/ArrayControllers/0/"
+    },
+    "logical_drive_0_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "RAID=0, CapacityMiB=476908, Health=OK, State=Enabled",
+      "source": "/redfish/v1/Systems/1/SmartStorage/ArrayControllers/0/LogicalDrives/1/"
+    },
+    "physical_drive_0_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "Model=WD5000A, MediaType=HDD, Interface=SATA, CapacityGB=500, Location=1I:1:1, Health=OK, State=Enabled",
+      "source": "/redfish/v1/Systems/1/SmartStorage/ArrayControllers/0/DiskDrives/0/"
+    }
+  },
+  "iml_events": [
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-13T16:01:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Drive Array Controller Failure (Slot 0)",
+      "severity": "Critical",
+      "created": "2017-05-14T11:57:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1719-Slot 0 Drive Array - A controller failure event occurred prior to this power-up. (Previous lock up code = 0x13) Action: Install the latest controller firmware. If the problem persists, replace the controller.",
+      "severity": "Warning",
+      "created": "2017-05-14T05:07:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-14T08:19:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-14T12:11:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-15T01:00:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-15T03:02:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-15T19:47:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-16T02:47:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-16T09:02:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-16T12:12:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-17T02:51:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-17T05:49:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-17T07:18:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-18T04:45:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-18T09:44:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Error: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "Warning",
+      "created": "2017-05-18T15:58:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2017-07-20T18:44:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2017-09-21T22:55:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Firmware flashed (iLO 4 2.55)",
+      "severity": "OK",
+      "created": "2017-10-11T07:45:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2017-11-27T21:31:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2018-01-29T20:26:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2018-04-05T00:07:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2018-06-08T02:43:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2018-08-11T12:15:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Firmware flashed (iLO 4 2.60)",
+      "severity": "OK",
+      "created": "2018-08-28T02:25:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2018-10-12T06:40:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Firmware flashed (iLO 4 2.61)",
+      "severity": "OK",
+      "created": "2018-10-23T03:52:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2018-12-17T22:50:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1792-Slot 0 Drive Array - Valid Data Found in Write-Back Cache. Data will automatically be written to drive array. Action: No action required.",
+      "severity": "OK",
+      "created": "2019-02-18T23:34:00Z",
+      "subsystem": "unknown"
+    }
+  ]
+}
