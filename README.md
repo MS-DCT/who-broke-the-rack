@@ -8,7 +8,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 1 — 2026-08-23** | #8 서버(5,6,7 확인 예정) / iLO / 네트워크 Baseline 구성 | Ansible 대상 서버 구성 + QSFP/네트워크 Baseline 수동 검증 + 수동 Evidence 확보 | FastAPI / SQLite / React Dashboard / GitHub 환경 구성 |
+| **Day 1 — 2026-08-23** | #5/#6/#7/#8 서버 / iLO / 네트워크 Baseline 구성 및 연결 확인 완료 | Ansible 대상 서버 구성 + QSFP/네트워크 Baseline 수동 검증 + 수동 Evidence 확보 | FastAPI / SQLite / React Dashboard / GitHub 환경 구성 |
 
 ➡️ [Day 1 상세 작업 기록](docs/day1.md)
 
@@ -18,7 +18,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 2 — 2026-08-24** | 작성 예정 | Network/OS/Service 자동 진단 Role 구현 + 상태 판정 + Evidence JSON 자동 생성 | Diagnostic Evidence DB 연동 + Suspect Card + Evidence Timeline 구현 |
+| **Day 2 — 2026-08-24** | Redfish 기반 Hardware/POST Evidence Collector 구현 + 상태 판정 + 다중 서버 Evidence JSON 수집 | Network/OS/Service 자동 진단 Role 구현 + 상태 판정 + Evidence JSON 자동 생성 | Diagnostic Evidence DB 연동 + Suspect Card + Evidence Timeline 구현 |
 
 ➡️ [Day 2 상세 작업 기록](docs/day2.md)
 
