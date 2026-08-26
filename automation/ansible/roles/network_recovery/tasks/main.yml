@@ -1,0 +1,150 @@
+---
+- name: Validate network recovery inputs
+  ansible.builtin.assert:
+    that:
+      - network_recovery_execute | bool
+      - network_recovery_interface | string | length > 0
+      - network_recovery_gateway | string | length > 0
+      - network_recovery_routes | length > 0
+      - ansible_facts.os_family in ['RedHat', 'Debian']
+      - >-
+        (network_recovery_routes
+        | selectattr('destination', 'equalto', '0.0.0.0/0')
+        | list | length == 0)
+        or (network_recovery_allow_default_route_change | bool)
+    fail_msg: >-
+      Recovery inputs, supported OS family, execute approval, and explicit
+      default-route approval are required.
+
+- name: Build validated recovery plan
+  ansible.builtin.set_fact:
+    network_recovery_plan: "{{ lookup('template', 'network-recovery-plan.json.j2') | from_json }}"
+  changed_when: false
+
+- name: Confirm target interface exists
+  ansible.builtin.command:
+    argv: [ip, -j, address, show, dev, "{{ network_recovery_interface }}"]
+  register: network_recovery_interface_before
+  changed_when: false
+
+- name: Read route state before recovery
+  ansible.builtin.command:
+    argv: [ip, -j, route, show]
+  register: network_recovery_routes_before
+  changed_when: false
+
+- name: Read gateway path before recovery
+  ansible.builtin.command:
+    argv: [ip, route, get, "{{ network_recovery_gateway }}"]
+  register: network_recovery_gateway_before
+  changed_when: false
+  failed_when: false
+
+- name: Check NetworkManager availability
+  ansible.builtin.command:
+    argv: [nmcli, --version]
+  register: network_recovery_nmcli
+  changed_when: false
+  failed_when: false
+
+- name: Check systemd-networkd availability
+  ansible.builtin.command:
+    argv: [networkctl, --version]
+  register: network_recovery_networkctl
+  changed_when: false
+  failed_when: false
+
+- name: Select available network management method
+  ansible.builtin.set_fact:
+    network_recovery_manager: >-
+      {{ 'NetworkManager' if network_recovery_nmcli.rc == 0
+         else ('systemd-networkd' if network_recovery_networkctl.rc == 0
+         else 'iproute2') }}
+  changed_when: false
+
+- name: Read current SSH client path
+  ansible.builtin.command:
+    argv: [ip, route, get, "{{ ansible_env.SSH_CONNECTION.split()[0] }}"]
+  when: ansible_env.SSH_CONNECTION | default('') | length > 0
+  register: network_recovery_ssh_path
+  changed_when: false
+  failed_when: false
+
+- name: Block unapproved changes on the current SSH interface
+  ansible.builtin.assert:
+    that:
+      - >-
+        network_recovery_allow_ssh_path_change | bool
+        or network_recovery_ssh_path is skipped
+        or network_recovery_interface not in (network_recovery_ssh_path.stdout | default(''))
+        or (network_recovery_routes
+            | selectattr('destination', 'equalto', '0.0.0.0/0')
+            | list | length == 0)
+    fail_msg: >-
+      A default-route change may affect the current SSH path. Explicit
+      allow_ssh_path_change approval is required.
+
+- name: Read requested route state before recovery
+  ansible.builtin.command:
+    argv: [ip, -j, route, show, "{{ item.destination }}"]
+  loop: "{{ network_recovery_routes }}"
+  register: network_recovery_requested_before
+  changed_when: false
+  failed_when: false
+
+- name: Apply only missing or different requested routes
+  ansible.builtin.command:
+    argv:
+      - ip
+      - route
+      - replace
+      - "{{ item.item.destination }}"
+      - via
+      - "{{ item.item.via }}"
+      - dev
+      - "{{ network_recovery_interface }}"
+  loop: "{{ network_recovery_requested_before.results }}"
+  when: >-
+    (item.stdout | default('[]') | from_json
+     | selectattr('gateway', 'defined')
+     | selectattr('gateway', 'equalto', item.item.via)
+     | selectattr('dev', 'defined')
+     | selectattr('dev', 'equalto', network_recovery_interface)
+     | list | length) == 0
+  register: network_recovery_route_changes
+
+- name: Read route state after recovery
+  ansible.builtin.command:
+    argv: [ip, -j, route, show]
+  register: network_recovery_routes_after
+  changed_when: false
+
+- name: Verify gateway reachability after recovery
+  ansible.builtin.command:
+    argv: [ping, -c, "2", -W, "2", "{{ network_recovery_gateway }}"]
+  register: network_recovery_gateway_after
+  changed_when: false
+  failed_when: false
+
+- name: Publish recovery result for the playbook
+  ansible.builtin.set_fact:
+    network_recovery_result:
+      plan: "{{ network_recovery_plan }}"
+      manager: "{{ network_recovery_manager }}"
+      changed: >-
+        {{ network_recovery_route_changes.results
+           | default([])
+           | selectattr('changed', 'defined')
+           | selectattr('changed', 'equalto', true)
+           | list | length > 0 }}
+      before:
+        interface: "{{ network_recovery_interface_before.stdout | from_json }}"
+        routes: "{{ network_recovery_routes_before.stdout | from_json }}"
+        requested_routes: "{{ network_recovery_requested_before.results | map(attribute='stdout') | map('from_json') | list }}"
+        gateway_path: "{{ network_recovery_gateway_before.stdout | default('') }}"
+        ssh_path: "{{ network_recovery_ssh_path.stdout | default('') }}"
+      after:
+        routes: "{{ network_recovery_routes_after.stdout | from_json }}"
+        gateway_reachability: "{{ 'PASS' if network_recovery_gateway_after.rc == 0 else 'FAIL' }}"
+        gateway_detail: "{{ network_recovery_gateway_after.stdout | default('') }}"
+  changed_when: false
