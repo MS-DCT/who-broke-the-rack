@@ -9,7 +9,7 @@ Day 4 팀별 작업 기록
 | Role | 담당 | Day 4 작업 |
 |---|---|---|
 | **A** | Hardware / Infrastructure | 작성 예정 |
-| **B** | Automation / Troubleshooting | 작성 예정 |
+| **B** | Automation / Troubleshooting | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증|
 | **C** | Platform / Visualization | 작성 예정 |
 
 ---
