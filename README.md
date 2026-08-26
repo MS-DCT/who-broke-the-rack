@@ -28,7 +28,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 3 — 2026-08-25** | 작성 예정 | Rule 기반 diagnosis Engine 구현 | 작성 예정 |
+| **Day 3 — 2026-08-25** | 작성 예정 | Rule 기반 diagnosis Engine 구현 | FastAPI Incident Controller, Diagnosis 연동, Evidence/Diagnosis DB 저장, Incident Timeline 및 React Live Diagnosis UI 구현 |
 
 ➡️ [Day 3 상세 작업 기록](docs/day3.md)
 
