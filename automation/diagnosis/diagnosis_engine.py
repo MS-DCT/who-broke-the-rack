@@ -31,6 +31,22 @@ HARDWARE_STORAGE_NAMES = (
     "logical_drive",
     "physical_drive",
 )
+
+# Keep per-device storage evidence as individual checks while preserving
+# backward compatibility with the legacy aggregate check names above.
+HARDWARE_STORAGE_PATTERNS = (
+    re.compile(r"^controller_\d+_health$"),
+    re.compile(r"^logical_drive_\d+_health$"),
+    re.compile(r"^physical_drive_\d+_health$"),
+)
+
+
+def is_hardware_storage_check(check_name: str) -> bool:
+    """Return True for legacy or indexed per-device storage evidence names."""
+    return (
+        check_name in HARDWARE_STORAGE_NAMES
+        or any(pattern.fullmatch(check_name) for pattern in HARDWARE_STORAGE_PATTERNS)
+    )
 SYSTEM_HEALTH_REFS = (
     ("hardware", "system_health"),
     ("hardware", "hardware_health"),
@@ -58,8 +74,12 @@ SERVICE_REFS = tuple(
     ("service", name) for name in ("process", "listening_port", "http_health")
 )
 STORAGE_IML_REFS = (
+    # Legacy locations
     ("hardware", "storage_iml_event"),
     ("hardware", "iml_event"),
+    # Common Collector format converted by incident_runner.py
+    ("event", "storage_iml_event"),
+    ("event", "iml_event"),
 )
 
 HEALTH_REQUIREMENTS = (
@@ -280,11 +300,18 @@ def diagnose(
     base = result_base(data, incident_id, server_id)
     gaps = evidence_gaps(index)
 
-    storage_refs = tuple(("hardware", name) for name in HARDWARE_STORAGE_NAMES)
+    # Evaluate legacy aggregate names and every indexed per-device storage
+    # check independently (controller_0_health, physical_drive_1_health, ...).
+    hardware_checks = [
+        check
+        for checks in index.get("hardware", {}).values()
+        for check in checks
+    ]
     unhealthy_storage = [
         check
-        for check in checks_for(index, storage_refs)
-        if check["result"] in {"WARN", "FAIL"}
+        for check in hardware_checks
+        if is_hardware_storage_check(check["check_name"])
+        and check["result"] in {"WARN", "FAIL"}
     ]
     related_storage_events = incident_storage_events(data, index)
     if unhealthy_storage and related_storage_events:
