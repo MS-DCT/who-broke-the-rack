@@ -31,22 +31,9 @@ HARDWARE_STORAGE_NAMES = (
     "logical_drive",
     "physical_drive",
 )
-
-# Keep per-device storage evidence as individual checks while preserving
-# backward compatibility with the legacy aggregate check names above.
-HARDWARE_STORAGE_PATTERNS = (
-    re.compile(r"^controller_\d+_health$"),
-    re.compile(r"^logical_drive_\d+_health$"),
-    re.compile(r"^physical_drive_\d+_health$"),
+HARDWARE_STORAGE_NAME_PATTERN = re.compile(
+    r"^(?:controller|logical_drive|physical_drive)_\d+_health$"
 )
-
-
-def is_hardware_storage_check(check_name: str) -> bool:
-    """Return True for legacy or indexed per-device storage evidence names."""
-    return (
-        check_name in HARDWARE_STORAGE_NAMES
-        or any(pattern.fullmatch(check_name) for pattern in HARDWARE_STORAGE_PATTERNS)
-    )
 SYSTEM_HEALTH_REFS = (
     ("hardware", "system_health"),
     ("hardware", "hardware_health"),
@@ -159,6 +146,20 @@ def checks_for(
         check
         for layer, check_name in references
         for check in index.get(layer, {}).get(check_name, [])
+    ]
+
+
+def storage_health_checks(
+    index: dict[str, dict[str, list[dict[str, Any]]]],
+) -> list[dict[str, Any]]:
+    """Return aggregate and per-device storage health checks."""
+    hardware = index.get("hardware", {})
+    return [
+        check
+        for check_name, checks in hardware.items()
+        if check_name in HARDWARE_STORAGE_NAMES
+        or HARDWARE_STORAGE_NAME_PATTERN.fullmatch(check_name)
+        for check in checks
     ]
 
 
@@ -300,18 +301,10 @@ def diagnose(
     base = result_base(data, incident_id, server_id)
     gaps = evidence_gaps(index)
 
-    # Evaluate legacy aggregate names and every indexed per-device storage
-    # check independently (controller_0_health, physical_drive_1_health, ...).
-    hardware_checks = [
-        check
-        for checks in index.get("hardware", {}).values()
-        for check in checks
-    ]
     unhealthy_storage = [
         check
-        for check in hardware_checks
-        if is_hardware_storage_check(check["check_name"])
-        and check["result"] in {"WARN", "FAIL"}
+        for check in storage_health_checks(index)
+        if check["result"] in {"WARN", "FAIL"}
     ]
     related_storage_events = incident_storage_events(data, index)
     if unhealthy_storage and related_storage_events:

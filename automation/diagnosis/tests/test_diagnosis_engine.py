@@ -293,6 +293,71 @@ class DiagnosisRuleTests(unittest.TestCase):
         self.assertIsNone(result["rule_id"])
         self.assertEqual(result["diagnosis_status"], "NO_ISSUE")
 
+    def test_16_per_device_storage_fault_and_current_iml_event_match(self):
+        for check_name in (
+            "controller_1_health",
+            "logical_drive_2_health",
+            "physical_drive_3_health",
+        ):
+            with self.subTest(check_name=check_name):
+                data = evidence(
+                    {
+                        "hardware": [
+                            check(check_name, "WARN"),
+                            check(
+                                "iml_event",
+                                "Warning",
+                                created="2026-08-27T00:01:00Z",
+                                subsystem="storage",
+                            ),
+                        ]
+                    }
+                )
+                data["incident_started_at"] = "2026-08-27T00:00:00Z"
+                result = self.assert_rule(data, "HW-STORAGE-01")
+                self.assertIn(
+                    {
+                        "layer": "hardware",
+                        "check_name": check_name,
+                        "result": "WARN",
+                    },
+                    result["matched_evidence"],
+                )
+
+    def test_17_current_storage_iml_event_without_current_fault_does_not_match(self):
+        data = evidence(
+            {
+                "hardware": [
+                    check("controller_1_health", "PASS"),
+                    check(
+                        "iml_event",
+                        "Warning",
+                        created="2026-08-27T00:01:00Z",
+                        subsystem="storage",
+                    ),
+                ]
+            }
+        )
+        data["incident_started_at"] = "2026-08-27T00:00:00Z"
+        self.assertIsNone(diagnose(data)["rule_id"])
+
+    def test_18_per_device_storage_fault_with_historical_iml_does_not_match(self):
+        data = evidence(
+            {
+                "hardware": [
+                    check("physical_drive_1_health", "FAIL"),
+                    check(
+                        "iml_event",
+                        "Critical",
+                        created="2026-08-20T00:00:00Z",
+                        subsystem="storage",
+                    ),
+                ]
+            }
+        )
+        data["incident_started_at"] = "2026-08-27T00:00:00Z"
+        self.assertIsNone(diagnose(data)["rule_id"])
+
 
 if __name__ == "__main__":
     unittest.main()

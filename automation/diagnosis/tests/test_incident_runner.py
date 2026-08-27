@@ -277,6 +277,58 @@ class IncidentRunnerTests(unittest.TestCase):
         self.assertEqual(ilo["timestamp"], "2026-08-27T00:00:00Z")
         self.assertEqual(power["source"], "redfish")
 
+    def test_common_hardware_preserves_each_device_storage_check(self):
+        hardware = common_hardware()
+        hardware["evidence"].update(
+            {
+                "controller_1_health": {
+                    "result": "WARN",
+                    "value": "Warning",
+                    "detail": "controller 1 degraded",
+                },
+                "logical_drive_2_health": {
+                    "result": "FAIL",
+                    "value": "Failed",
+                    "detail": "logical drive 2 failed",
+                },
+                "physical_drive_3_health": {
+                    "result": "PASS",
+                    "value": "OK",
+                    "detail": "physical drive 3 healthy",
+                },
+            }
+        )
+        merged = load_and_merge_hardware(
+            collected_evidence("INC-COMMON", "dca-target01", "2026-08-27T00:00:00Z"),
+            hardware,
+            "dca-target01",
+        )
+        flattened = {
+            item["check_name"]: item
+            for item in flatten_evidence(merged)
+            if item["check_name"] in {
+                "controller_1_health",
+                "logical_drive_2_health",
+                "physical_drive_3_health",
+            }
+        }
+        self.assertEqual(
+            set(flattened),
+            {
+                "controller_1_health",
+                "logical_drive_2_health",
+                "physical_drive_3_health",
+            },
+        )
+        self.assertEqual(flattened["controller_1_health"]["result"], "WARN")
+        self.assertEqual(flattened["logical_drive_2_health"]["result"], "FAIL")
+        self.assertEqual(flattened["physical_drive_3_health"]["result"], "PASS")
+        self.assertEqual(
+            flattened["logical_drive_2_health"]["detail"],
+            "logical drive 2 failed",
+        )
+        self.assertTrue(all(set(item) == EVIDENCE_KEYS for item in flattened.values()))
+
     def test_flat_evidence_normalizes_names_and_accepts_legacy_details(self):
         data = {
             "incident_id": "INC-FLAT",

@@ -2,6 +2,7 @@
 backend/venv/
 backend/__pycache__/
 *.pyc
+*.bak
 
 # SQLite local DB
 backend/rack.db
