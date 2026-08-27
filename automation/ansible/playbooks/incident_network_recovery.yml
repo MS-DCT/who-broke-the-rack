@@ -21,6 +21,7 @@
         network_recovery_interface: "{{ network_recovery_config.interface }}"
         network_recovery_gateway: "{{ network_recovery_config.gateway }}"
         network_recovery_routes: "{{ network_recovery_config.routes }}"
+        network_recovery_remove_blackhole_routes: "{{ network_recovery_config.remove_blackhole_routes | default([]) }}"
         network_recovery_execute: true
         network_recovery_allow_default_route_change: "{{ network_recovery_config.allow_default_route_change | default(false) }}"
         network_recovery_allow_ssh_path_change: "{{ network_recovery_config.allow_ssh_path_change | default(false) }}"

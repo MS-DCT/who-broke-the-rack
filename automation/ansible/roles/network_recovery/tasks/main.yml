@@ -5,7 +5,9 @@
       - network_recovery_execute | bool
       - network_recovery_interface | string | length > 0
       - network_recovery_gateway | string | length > 0
-      - network_recovery_routes | length > 0
+      - >-
+        (network_recovery_routes | length > 0)
+        or (network_recovery_remove_blackhole_routes | length > 0)
       - ansible_facts.os_family in ['RedHat', 'Debian']
       - >-
         (network_recovery_routes
@@ -18,7 +20,13 @@
 
 - name: Build validated recovery plan
   ansible.builtin.set_fact:
-    network_recovery_plan: "{{ lookup('template', 'network-recovery-plan.json.j2') | from_json }}"
+    network_recovery_plan:
+      interface: "{{ network_recovery_interface }}"
+      gateway: "{{ network_recovery_gateway }}"
+      routes: "{{ network_recovery_routes }}"
+      remove_blackhole_routes: "{{ network_recovery_remove_blackhole_routes }}"
+      allow_default_route_change: "{{ network_recovery_allow_default_route_change | bool }}"
+      allow_ssh_path_change: "{{ network_recovery_allow_ssh_path_change | bool }}"
   changed_when: false
 
 - name: Confirm target interface exists
@@ -92,6 +100,21 @@
   changed_when: false
   failed_when: false
 
+- name: Read requested blackhole route state before recovery
+  ansible.builtin.command:
+    argv: [ip, -j, route, show, type, blackhole, exact, "{{ item }}"]
+  loop: "{{ network_recovery_remove_blackhole_routes }}"
+  register: network_recovery_blackholes_before
+  changed_when: false
+  failed_when: false
+
+- name: Remove only requested blackhole routes that exist
+  ansible.builtin.command:
+    argv: [ip, route, del, blackhole, "{{ item.item }}"]
+  loop: "{{ network_recovery_blackholes_before.results }}"
+  when: (item.stdout | default('[]', true) | from_json | length) > 0
+  register: network_recovery_blackhole_changes
+
 - name: Apply only missing or different requested routes
   ansible.builtin.command:
     argv:
@@ -119,6 +142,14 @@
   register: network_recovery_routes_after
   changed_when: false
 
+- name: Read requested blackhole route state after recovery
+  ansible.builtin.command:
+    argv: [ip, -j, route, show, type, blackhole, exact, "{{ item }}"]
+  loop: "{{ network_recovery_remove_blackhole_routes }}"
+  register: network_recovery_blackholes_after
+  changed_when: false
+  failed_when: false
+
 - name: Verify gateway reachability after recovery
   ansible.builtin.command:
     argv: [ping, -c, "2", -W, "2", "{{ network_recovery_gateway }}"]
@@ -132,8 +163,8 @@
       plan: "{{ network_recovery_plan }}"
       manager: "{{ network_recovery_manager }}"
       changed: >-
-        {{ network_recovery_route_changes.results
-           | default([])
+        {{ ((network_recovery_route_changes.results | default([]))
+            + (network_recovery_blackhole_changes.results | default([])))
            | selectattr('changed', 'defined')
            | selectattr('changed', 'equalto', true)
            | list | length > 0 }}
@@ -141,10 +172,12 @@
         interface: "{{ network_recovery_interface_before.stdout | from_json }}"
         routes: "{{ network_recovery_routes_before.stdout | from_json }}"
         requested_routes: "{{ network_recovery_requested_before.results | map(attribute='stdout') | map('from_json') | list }}"
+        requested_blackhole_routes: "{{ network_recovery_blackholes_before.results | map(attribute='stdout') | map('from_json') | list }}"
         gateway_path: "{{ network_recovery_gateway_before.stdout | default('') }}"
         ssh_path: "{{ network_recovery_ssh_path.stdout | default('') }}"
       after:
         routes: "{{ network_recovery_routes_after.stdout | from_json }}"
+        requested_blackhole_routes: "{{ network_recovery_blackholes_after.results | map(attribute='stdout') | map('from_json') | list }}"
         gateway_reachability: "{{ 'PASS' if network_recovery_gateway_after.rc == 0 else 'FAIL' }}"
         gateway_detail: "{{ network_recovery_gateway_after.stdout | default('') }}"
   changed_when: false

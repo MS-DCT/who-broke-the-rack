@@ -36,6 +36,7 @@ ALLOWED_RECOVERY_KEYS = {
     "interface",
     "gateway",
     "routes",
+    "remove_blackhole_routes",
     "verification",
     "allow_default_route_change",
     "allow_ssh_path_change",
@@ -47,6 +48,7 @@ ALLOWED_VERIFICATION_CHECKS = {
     "ip_address",
     "gateway",
     "routes",
+    "pxe_reachability",
     "process",
     "listening_port",
     "http_health",
@@ -65,6 +67,7 @@ CHECK_LAYERS = {
     "ip_address": "network",
     "gateway": "network",
     "routes": "network",
+    "pxe_reachability": "network",
     "process": "service",
     "listening_port": "service",
     "http_health": "service",
@@ -138,8 +141,8 @@ def validate_recovery_vars(recovery_vars: Any) -> dict[str, Any]:
         raise RecoveryRunnerError("gateway must be a valid IPv4 address") from error
 
     routes = data.get("routes")
-    if not isinstance(routes, list) or not routes:
-        raise RecoveryRunnerError("routes must be a non-empty list")
+    if not isinstance(routes, list):
+        raise RecoveryRunnerError("routes must be a list")
 
     normalized_routes: list[dict[str, str]] = []
     destinations: set[str] = set()
@@ -167,6 +170,30 @@ def validate_recovery_vars(recovery_vars: Any) -> dict[str, Any]:
             raise RecoveryRunnerError(f"Duplicate route destination: {destination}")
         destinations.add(destination)
         normalized_routes.append({"destination": destination, "via": via})
+
+    remove_blackhole_routes = data.get("remove_blackhole_routes", [])
+    if not isinstance(remove_blackhole_routes, list):
+        raise RecoveryRunnerError("remove_blackhole_routes must be a list")
+    normalized_blackholes: list[str] = []
+    for position, destination_value in enumerate(remove_blackhole_routes):
+        try:
+            destination = ipaddress.IPv4Network(destination_value, strict=True)
+        except (TypeError, ValueError) as error:
+            raise RecoveryRunnerError(
+                f"remove_blackhole_routes[{position}] must be a canonical IPv4 CIDR"
+            ) from error
+        if destination.prefixlen != 32:
+            raise RecoveryRunnerError("Only exact /32 blackhole routes may be removed")
+        normalized_destination = str(destination)
+        if normalized_destination in normalized_blackholes:
+            raise RecoveryRunnerError(
+                f"Duplicate blackhole route destination: {normalized_destination}"
+            )
+        normalized_blackholes.append(normalized_destination)
+    if not normalized_routes and not normalized_blackholes:
+        raise RecoveryRunnerError(
+            "routes or remove_blackhole_routes must contain at least one recovery action"
+        )
 
     allow_default = data.get("allow_default_route_change", False)
     allow_ssh = data.get("allow_ssh_path_change", False)
@@ -204,13 +231,18 @@ def validate_recovery_vars(recovery_vars: Any) -> dict[str, Any]:
             "verification.required_checks must include the mandatory network and SSH checks: "
             f"{sorted(missing_checks)}"
         )
+    requested_required_checks = (
+        REQUIRED_VERIFICATION_CHECKS
+        | (set(required_checks) - OPTIONAL_VERIFICATION_CHECKS)
+    )
 
     return {
         "interface": interface,
         "gateway": gateway,
         "routes": normalized_routes,
+        "remove_blackhole_routes": normalized_blackholes,
         "verification": {
-            "required_checks": sorted(REQUIRED_VERIFICATION_CHECKS),
+            "required_checks": sorted(requested_required_checks),
             "optional_checks": sorted(OPTIONAL_VERIFICATION_CHECKS),
         },
         "allow_default_route_change": allow_default,
@@ -242,7 +274,7 @@ def run_recovery_playbook(
     except OSError as error:
         raise RecoveryRunnerError(f"Could not start ansible-playbook: {error}") from error
     if completed.returncode != 0:
-        detail = completed.stderr.strip() or completed.stdout.strip() or "unknown error"
+        detail = completed.stdout.strip() or completed.stderr.strip() or "unknown error"
         raise RecoveryRunnerError(
             f"Network recovery playbook failed with exit code {completed.returncode}: {detail}"
         )
@@ -330,6 +362,7 @@ def plan_after(recovery_vars: dict[str, Any]) -> dict[str, Any]:
         "interface": recovery_vars["interface"],
         "gateway": recovery_vars["gateway"],
         "routes": recovery_vars["routes"],
+        "removed_blackhole_routes": recovery_vars["remove_blackhole_routes"],
     }
 
 

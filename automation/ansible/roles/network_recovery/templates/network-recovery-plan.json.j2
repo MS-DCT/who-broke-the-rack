@@ -2,6 +2,7 @@
   "interface": {{ network_recovery_interface | to_json }},
   "gateway": {{ network_recovery_gateway | to_json }},
   "routes": {{ network_recovery_routes | to_json }},
+  "remove_blackhole_routes": {{ network_recovery_remove_blackhole_routes | to_json }},
   "allow_default_route_change": {{ network_recovery_allow_default_route_change | bool | to_json }},
   "allow_ssh_path_change": {{ network_recovery_allow_ssh_path_change | bool | to_json }}
 }

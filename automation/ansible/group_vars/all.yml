@@ -52,9 +52,6 @@ diagnostic_critical_systemd_units:
   - docker.service
   - containerd.service
   - kubelet.service
-diagnostic_port_targets: []
-diagnostic_services: []
-
 diagnostic_port_targets:
   - name: target01_ssh
     host: 192.168.100.205

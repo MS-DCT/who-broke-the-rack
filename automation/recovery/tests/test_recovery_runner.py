@@ -83,6 +83,22 @@ def recovery_vars(**overrides):
     return value
 
 
+def blackhole_recovery_vars(**overrides):
+    value = recovery_vars(
+        routes=[],
+        remove_blackhole_routes=["192.168.100.60/32"],
+        verification={
+            "required_checks": [
+                *REQUIRED_CHECKS,
+                "pxe_reachability",
+                *OPTIONAL_CHECKS,
+            ]
+        },
+    )
+    value.update(overrides)
+    return value
+
+
 def evidence(**results):
     defaults = {name: "PASS" for name in [*REQUIRED_CHECKS, *OPTIONAL_CHECKS]}
     defaults.update(results)
@@ -105,6 +121,50 @@ def recovery_output():
 
 
 class RecoveryRunnerTests(unittest.TestCase):
+    def test_blackhole_exact_route_removal_is_a_supported_plan(self):
+        result = run_recovery(
+            "INC-001",
+            "dca-target01",
+            diagnosis(),
+            blackhole_recovery_vars(),
+        )
+        self.assertEqual(
+            result["after"]["removed_blackhole_routes"],
+            ["192.168.100.60/32"],
+        )
+        self.assertIn(
+            "pxe_reachability", result["verification"]["required_checks"]
+        )
+
+    def test_blackhole_removal_rejects_non_exact_or_duplicate_destinations(self):
+        values = (
+            blackhole_recovery_vars(remove_blackhole_routes=["192.168.100.0/24"]),
+            blackhole_recovery_vars(remove_blackhole_routes=["192.168.100.61/32"] * 2),
+            blackhole_recovery_vars(remove_blackhole_routes=["not-a-network"]),
+        )
+        for value in values:
+            with self.subTest(value=value), self.assertRaises(RecoveryRunnerError):
+                run_recovery("INC-001", "dca-target01", diagnosis(), value)
+
+    def test_blackhole_role_checks_presence_and_uses_command_argv(self):
+        tasks = (PRODUCTION_FILES[1]).read_text(encoding="utf-8")
+        self.assertIn("route, show, type, blackhole, exact", tasks)
+        self.assertIn("argv: [ip, route, del, blackhole", tasks)
+        self.assertIn("when: (item.stdout", tasks)
+
+    def test_pxe_reachability_can_be_required_for_recovery_only(self):
+        checks = evidence()
+        checks.append(
+            {
+                "layer": "network",
+                "check_name": "pxe_reachability",
+                "result": "PASS",
+                "detail": "target reachable",
+            }
+        )
+        result = evaluate_verification(checks, [*REQUIRED_CHECKS, "pxe_reachability"])
+        self.assertEqual(result["status"], "VERIFIED")
+
     @patch("automation.recovery.recovery_runner.run_recovery_playbook")
     def test_01_net_route_maps_to_network_recovery_plan(self, mocked_playbook):
         result = run_recovery("INC-001", "dca-target01", incident_result(), recovery_vars())
