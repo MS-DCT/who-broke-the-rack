@@ -1,0 +1,12 @@
+---
+service_recovery_execute: false
+service_recovery_service_name: ""
+service_recovery_package_name: ""
+service_recovery_config_path: ""
+service_recovery_config_content: null
+service_recovery_config_mode: "0644"
+service_recovery_validation_binary: ""
+service_recovery_process_pattern: ""
+service_recovery_port: 0
+service_recovery_http_enabled: false
+service_recovery_http_url: ""

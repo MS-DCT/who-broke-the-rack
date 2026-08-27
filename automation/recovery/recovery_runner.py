@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan or execute the approved NET-ROUTE-01 recovery workflow."""
+"""Plan or execute an approved rule-dispatched incident recovery workflow."""
 
 from __future__ import annotations
 
@@ -26,12 +26,38 @@ from automation.diagnosis.incident_runner import IncidentRunnerError, run_incide
 HERE = Path(__file__).resolve().parent
 AUTOMATION_DIR = HERE.parent
 DEFAULT_INVENTORY = AUTOMATION_DIR / "ansible" / "inventory.ini"
-DEFAULT_PLAYBOOK = AUTOMATION_DIR / "ansible" / "playbooks" / "incident_network_recovery.yml"
-ALLOWED_RULE = "NET-ROUTE-01"
-ALLOWED_ACTION = "network_recovery"
-DAY3_RECOMMENDED_ACTION = (
+NETWORK_PLAYBOOK = AUTOMATION_DIR / "ansible" / "playbooks" / "incident_network_recovery.yml"
+SERVICE_PLAYBOOK = AUTOMATION_DIR / "ansible" / "playbooks" / "incident_service_recovery.yml"
+DEFAULT_PLAYBOOK = NETWORK_PLAYBOOK  # Backward-compatible public constant.
+NETWORK_RULE = "NET-ROUTE-01"
+SERVICE_RULE = "SVC-HTTP-01"
+NETWORK_ACTION = "network_recovery"
+SERVICE_ACTION = "service_recovery"
+NETWORK_RECOMMENDED_ACTION = (
     "Verify the gateway and required destination routes, then correct the routing configuration."
 )
+SERVICE_RECOMMENDED_ACTION = (
+    "Inspect the failed service process, listening socket, application logs, and HTTP health endpoint."
+)
+RULE_ACTIONS = {
+    NETWORK_RULE: (NETWORK_ACTION, {NETWORK_ACTION, NETWORK_RECOMMENDED_ACTION}),
+    SERVICE_RULE: (SERVICE_ACTION, {SERVICE_ACTION, SERVICE_RECOMMENDED_ACTION}),
+}
+# A's real service values are intentionally not guessed. This profile exists
+# only for mock tests and must be replaced or extended after scenario hand-off.
+SERVICE_RECOVERY_PROFILES = {
+    "day5_mock_http": {
+        "service_name": "wbr-day5-mock.service",
+        "package_name": "wbr-day5-mock",
+        "config_path": "/etc/who-broke-the-rack/day5-mock.conf",
+        "config_mode": "0644",
+        "validation_binary": "/usr/bin/wbr-day5-mock",
+        "process_pattern": "wbr-day5-mock",
+        "port": 18080,
+        "http_url": "http://127.0.0.1:18080/health",
+    }
+}
+SERVICE_RECOVERY_KEYS = {"profile", "config_content", "http_enabled"}
 ALLOWED_RECOVERY_KEYS = {
     "interface",
     "gateway",
@@ -108,16 +134,18 @@ def validate_diagnosis(incident_id: str, host: str, diagnosis: Any) -> dict[str,
         raise RecoveryRunnerError(
             f"Diagnosis status {data.get('diagnosis_status')!r} is not recoverable"
         )
-    if data.get("rule_id") != ALLOWED_RULE:
-        raise RecoveryRunnerError(
-            f"Only {ALLOWED_RULE} can execute {ALLOWED_ACTION}"
-        )
+    rule_id = data.get("rule_id")
+    if rule_id not in RULE_ACTIONS:
+        raise RecoveryRunnerError(f"Unsupported recovery rule: {rule_id!r}")
+    action, recommended_actions = RULE_ACTIONS[rule_id]
     recommended_action = data.get("recommended_action")
-    if not isinstance(recommended_action, str) or recommended_action not in (
-        ALLOWED_ACTION,
-        DAY3_RECOMMENDED_ACTION,
+    if (
+        not isinstance(recommended_action, str)
+        or recommended_action not in recommended_actions
     ):
-        raise RecoveryRunnerError("Diagnosis recommended_action is not the NET-ROUTE-01 action")
+        raise RecoveryRunnerError(
+            f"Diagnosis recommended_action is not the {rule_id} action {action!r}"
+        )
     if "incident_id" in data and data.get("incident_id") != incident_id:
         raise RecoveryRunnerError("Diagnosis incident_id does not match the request")
     if "host" in data and data.get("host") != host:
@@ -125,7 +153,7 @@ def validate_diagnosis(incident_id: str, host: str, diagnosis: Any) -> dict[str,
     return data
 
 
-def validate_recovery_vars(recovery_vars: Any) -> dict[str, Any]:
+def validate_network_recovery_vars(recovery_vars: Any) -> dict[str, Any]:
     data = require_json_object(recovery_vars, "recovery_vars")
     extras = set(data) - ALLOWED_RECOVERY_KEYS
     if extras:
@@ -250,14 +278,62 @@ def validate_recovery_vars(recovery_vars: Any) -> dict[str, Any]:
     }
 
 
-def run_recovery_playbook(
-    *, incident_id: str, host: str, recovery_vars: dict[str, Any], output_dir: Path
+def validate_service_recovery_vars(recovery_vars: Any) -> dict[str, Any]:
+    data = require_json_object(recovery_vars, "recovery_vars")
+    if set(data) != SERVICE_RECOVERY_KEYS:
+        raise RecoveryRunnerError(
+            f"Service recovery_vars must contain only {sorted(SERVICE_RECOVERY_KEYS)}"
+        )
+    profile_name = data.get("profile")
+    if profile_name not in SERVICE_RECOVERY_PROFILES:
+        raise RecoveryRunnerError(f"Unsupported service recovery profile: {profile_name!r}")
+    config_content = data.get("config_content")
+    if config_content is not None and not isinstance(config_content, str):
+        raise RecoveryRunnerError("config_content must be a string or null")
+    if isinstance(config_content, str) and len(config_content.encode("utf-8")) > 65536:
+        raise RecoveryRunnerError("config_content exceeds the 64 KiB safety limit")
+    http_enabled = data.get("http_enabled")
+    if not isinstance(http_enabled, bool):
+        raise RecoveryRunnerError("http_enabled must be a boolean")
+    return {
+        "profile": profile_name,
+        **SERVICE_RECOVERY_PROFILES[profile_name],
+        "config_content": config_content,
+        "http_enabled": http_enabled,
+        "verification": {
+            "required_checks": sorted(
+                REQUIRED_VERIFICATION_CHECKS
+                | ({"http_health"} if http_enabled else set())
+            ),
+            "optional_checks": [] if http_enabled else ["http_health"],
+        },
+    }
+
+
+def validate_recovery_vars(
+    recovery_vars: Any, rule_id: str = NETWORK_RULE
+) -> dict[str, Any]:
+    if rule_id == NETWORK_RULE:
+        return validate_network_recovery_vars(recovery_vars)
+    if rule_id == SERVICE_RULE:
+        return validate_service_recovery_vars(recovery_vars)
+    raise RecoveryRunnerError(f"Unsupported recovery rule: {rule_id!r}")
+
+
+def _run_recovery_playbook(
+    *,
+    incident_id: str,
+    host: str,
+    recovery_vars: dict[str, Any],
+    output_dir: Path,
+    playbook: Path,
+    config_key: str,
 ) -> dict[str, Any]:
     command = [
         "ansible-playbook",
         "-i",
         str(DEFAULT_INVENTORY),
-        str(DEFAULT_PLAYBOOK),
+        str(playbook),
         "--limit",
         host,
         "--extra-vars",
@@ -265,7 +341,7 @@ def run_recovery_playbook(
             {
                 "incident_id": incident_id,
                 "recovery_output_dir": str(output_dir),
-                "network_recovery_config": recovery_vars,
+                config_key: recovery_vars,
             }
         ),
     ]
@@ -276,7 +352,7 @@ def run_recovery_playbook(
     if completed.returncode != 0:
         detail = completed.stdout.strip() or completed.stderr.strip() or "unknown error"
         raise RecoveryRunnerError(
-            f"Network recovery playbook failed with exit code {completed.returncode}: {detail}"
+            f"Recovery playbook failed with exit code {completed.returncode}: {detail}"
         )
 
     path = output_dir / f"{host}.json"
@@ -292,6 +368,33 @@ def run_recovery_playbook(
     return recovery
 
 
+def run_recovery_playbook(
+    *, incident_id: str, host: str, recovery_vars: dict[str, Any], output_dir: Path
+) -> dict[str, Any]:
+    """Run the existing network playbook (kept for API and mock compatibility)."""
+    return _run_recovery_playbook(
+        incident_id=incident_id,
+        host=host,
+        recovery_vars=recovery_vars,
+        output_dir=output_dir,
+        playbook=NETWORK_PLAYBOOK,
+        config_key="network_recovery_config",
+    )
+
+
+def run_service_recovery_playbook(
+    *, incident_id: str, host: str, recovery_vars: dict[str, Any], output_dir: Path
+) -> dict[str, Any]:
+    return _run_recovery_playbook(
+        incident_id=incident_id,
+        host=host,
+        recovery_vars=recovery_vars,
+        output_dir=output_dir,
+        playbook=SERVICE_PLAYBOOK,
+        config_key="service_recovery_config",
+    )
+
+
 def collect_verification(incident_id: str, host: str) -> list[dict[str, Any]]:
     try:
         result = run_incident(incident_id, host)
@@ -304,9 +407,14 @@ def collect_verification(incident_id: str, host: str) -> list[dict[str, Any]]:
 
 
 def evaluate_verification(
-    evidence: list[dict[str, Any]], required_checks: list[str]
+    evidence: list[dict[str, Any]],
+    required_checks: list[str],
+    optional_checks: list[str] | None = None,
 ) -> dict[str, Any]:
-    check_names = [*required_checks, *sorted(OPTIONAL_VERIFICATION_CHECKS)]
+    optional = sorted(
+        OPTIONAL_VERIFICATION_CHECKS if optional_checks is None else optional_checks
+    )
+    check_names = [*required_checks, *optional]
     observed: dict[str, list[dict[str, str]]] = {name: [] for name in check_names}
     for item in evidence:
         if not isinstance(item, dict):
@@ -329,7 +437,7 @@ def evaluate_verification(
     ]
     optional_results: list[dict[str, Any]] = []
     excluded_results: list[dict[str, str]] = []
-    for name in sorted(OPTIONAL_VERIFICATION_CHECKS):
+    for name in optional:
         values = observed[name]
         endpoint_not_configured = bool(values) and all(
             item["result"] == "SKIP" and "not configured" in item["detail"].lower()
@@ -366,6 +474,17 @@ def plan_after(recovery_vars: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def service_plan_after(recovery_vars: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "profile": recovery_vars["profile"],
+        "service_name": recovery_vars["service_name"],
+        "package_name": recovery_vars["package_name"],
+        "config_path": recovery_vars["config_path"],
+        "config_restore_requested": recovery_vars["config_content"] is not None,
+        "http_enabled": recovery_vars["http_enabled"],
+    }
+
+
 def run_recovery(
     incident_id: str,
     host: str,
@@ -379,8 +498,11 @@ def run_recovery(
         raise RecoveryRunnerError("host has an invalid format")
     if not isinstance(execute, bool):
         raise RecoveryRunnerError("execute must be a boolean")
-    validate_diagnosis(incident_id, host, diagnosis)
-    normalized = validate_recovery_vars(recovery_vars)
+    diagnosis_data = validate_diagnosis(incident_id, host, diagnosis)
+    rule_id = str(diagnosis_data["rule_id"])
+    action = RULE_ACTIONS[rule_id][0]
+    normalized = validate_recovery_vars(recovery_vars, rule_id)
+    optional_checks = normalized["verification"]["optional_checks"]
 
     started_at = utc_now()
     started_clock = time.monotonic()
@@ -389,8 +511,8 @@ def run_recovery(
         result = {
             "incident_id": incident_id,
             "host": host,
-            "rule_id": ALLOWED_RULE,
-            "action": ALLOWED_ACTION,
+            "rule_id": rule_id,
+            "action": action,
             "executor": "ansible",
             "mode": "PLAN_ONLY",
             "started_at": started_at,
@@ -404,14 +526,23 @@ def run_recovery(
                 "excluded_checks": [],
             },
             "before": {},
-            "after": plan_after(normalized),
+            "after": (
+                plan_after(normalized)
+                if rule_id == NETWORK_RULE
+                else service_plan_after(normalized)
+            ),
             "detail": None,
         }
         json.dumps(result)
         return result
 
-    with tempfile.TemporaryDirectory(prefix="incident-network-recovery-") as directory:
-        recovery = run_recovery_playbook(
+    with tempfile.TemporaryDirectory(prefix="incident-recovery-") as directory:
+        playbook_runner = (
+            run_recovery_playbook
+            if rule_id == NETWORK_RULE
+            else run_service_recovery_playbook
+        )
+        recovery = playbook_runner(
             incident_id=incident_id,
             host=host,
             recovery_vars=normalized,
@@ -420,7 +551,9 @@ def run_recovery(
         verification_evidence = collect_verification(incident_id, host)
 
     verification = evaluate_verification(
-        verification_evidence, normalized["verification"]["required_checks"]
+        verification_evidence,
+        normalized["verification"]["required_checks"],
+        optional_checks,
     )
     verification_status = verification["status"]
     result_status = "SUCCESS" if verification_status == "VERIFIED" else "FAILED"
@@ -428,8 +561,8 @@ def run_recovery(
     result = {
         "incident_id": incident_id,
         "host": host,
-        "rule_id": ALLOWED_RULE,
-        "action": ALLOWED_ACTION,
+        "rule_id": rule_id,
+        "action": action,
         "executor": "ansible",
         "mode": "EXECUTE",
         "started_at": started_at,
@@ -479,7 +612,7 @@ def main() -> int:
         return 1
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
-    return 0
+    return 2 if result.get("verification_status") == "ESCALATION_REQUIRED" else 0
 
 
 if __name__ == "__main__":

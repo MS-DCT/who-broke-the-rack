@@ -31,6 +31,18 @@ PRODUCTION_FILES = (
     / "ansible"
     / "playbooks"
     / "incident_network_recovery.yml",
+    REPOSITORY_ROOT
+    / "automation"
+    / "ansible"
+    / "roles"
+    / "service_recovery"
+    / "tasks"
+    / "main.yml",
+    REPOSITORY_ROOT
+    / "automation"
+    / "ansible"
+    / "playbooks"
+    / "incident_service_recovery.yml",
 )
 REQUIRED_CHECKS = [
     "nic_link",
@@ -192,7 +204,7 @@ class RecoveryRunnerTests(unittest.TestCase):
             run_recovery("INC-001", "dca-target01", diagnosis(host="other-host"), recovery_vars())
 
     def test_05_missing_rule_is_blocked(self):
-        with self.assertRaisesRegex(RecoveryRunnerError, "Only NET-ROUTE-01"):
+        with self.assertRaisesRegex(RecoveryRunnerError, "Unsupported recovery rule"):
             run_recovery("INC-001", "dca-target01", diagnosis(rule_id=None), recovery_vars())
 
     def test_06_insufficient_evidence_is_blocked(self):
@@ -205,7 +217,7 @@ class RecoveryRunnerTests(unittest.TestCase):
             )
 
     def test_07_other_layer_rules_are_blocked(self):
-        for rule_id in ("SVC-HTTP-01", "HW-STORAGE-01", "BOOT-OS-01"):
+        for rule_id in ("HW-STORAGE-01", "BOOT-OS-01"):
             with self.subTest(rule_id=rule_id), self.assertRaises(RecoveryRunnerError):
                 run_recovery("INC-001", "dca-target01", diagnosis(rule_id=rule_id), recovery_vars())
 

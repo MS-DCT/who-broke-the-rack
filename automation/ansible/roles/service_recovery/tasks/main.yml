@@ -1,0 +1,201 @@
+---
+- name: Validate service recovery safety inputs
+  ansible.builtin.assert:
+    that:
+      - service_recovery_execute | bool
+      - service_recovery_service_name == 'wbr-day5-mock.service'
+      - service_recovery_service_name not in ['ssh.service', 'sshd.service', 'NetworkManager.service', 'systemd-networkd.service']
+      - service_recovery_package_name == 'wbr-day5-mock'
+      - service_recovery_config_path == '/etc/who-broke-the-rack/day5-mock.conf'
+      - service_recovery_validation_binary == '/usr/bin/wbr-day5-mock'
+      - service_recovery_process_pattern | string | length > 0
+      - service_recovery_port | int > 0
+      - service_recovery_port | int <= 65535
+      - service_recovery_http_enabled is boolean
+      - >-
+        (not service_recovery_http_enabled | bool)
+        or (service_recovery_http_url | string | length > 0)
+      - >-
+        service_recovery_config_content is none
+        or service_recovery_config_content is string
+    fail_msg: >-
+      Service recovery requires an approved profile and rejects control-plane
+      services, arbitrary packages, paths, validation commands, and ports.
+
+- name: Read installed package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Require the approved package to be installed
+  ansible.builtin.assert:
+    that:
+      - service_recovery_package_name in ansible_facts.packages
+    fail_msg: "The approved service package is not installed; automatic install is forbidden."
+
+- name: Read service facts before recovery
+  ansible.builtin.service_facts:
+
+- name: Check service process before recovery
+  ansible.builtin.command:
+    argv: [pgrep, -f, "{{ service_recovery_process_pattern }}"]
+  register: service_recovery_process_before
+  changed_when: false
+  failed_when: false
+
+- name: Check service listening port before recovery
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ service_recovery_port | int }}"
+    connect_timeout: 1
+    timeout: 2
+    state: started
+  register: service_recovery_port_before
+  changed_when: false
+  failed_when: false
+
+- name: Check enabled HTTP health before recovery
+  ansible.builtin.uri:
+    url: "{{ service_recovery_http_url }}"
+    method: GET
+    status_code: 200
+    return_content: false
+    timeout: 2
+  when: service_recovery_http_enabled | bool
+  register: service_recovery_http_before
+  changed_when: false
+  failed_when: false
+
+- name: Validate current config before recovery
+  ansible.builtin.command:
+    argv:
+      - "{{ service_recovery_validation_binary }}"
+      - --check-config
+      - "{{ service_recovery_config_path }}"
+  register: service_recovery_validation_before
+  changed_when: false
+  failed_when: false
+
+- name: Restore explicitly supplied approved config
+  when: service_recovery_config_content is not none
+  block:
+    - name: Allocate candidate config file
+      ansible.builtin.tempfile:
+        state: file
+        suffix: .day5-candidate
+      register: service_recovery_candidate
+
+    - name: Write candidate config without changing the service
+      ansible.builtin.copy:
+        content: "{{ service_recovery_config_content }}"
+        dest: "{{ service_recovery_candidate.path }}"
+        mode: "0600"
+
+    - name: Validate candidate config before deployment
+      ansible.builtin.command:
+        argv:
+          - "{{ service_recovery_validation_binary }}"
+          - --check-config
+          - "{{ service_recovery_candidate.path }}"
+      register: service_recovery_candidate_validation
+      changed_when: false
+
+    - name: Deploy validated config only when content differs
+      ansible.builtin.copy:
+        content: "{{ service_recovery_config_content }}"
+        dest: "{{ service_recovery_config_path }}"
+        mode: "{{ service_recovery_config_mode }}"
+        backup: true
+      register: service_recovery_config_deploy
+  always:
+    - name: Remove candidate config file
+      ansible.builtin.file:
+        path: "{{ service_recovery_candidate.path | default('') }}"
+        state: absent
+      when: service_recovery_candidate.path | default('') | length > 0
+
+- name: Validate deployed config after recovery
+  ansible.builtin.command:
+    argv:
+      - "{{ service_recovery_validation_binary }}"
+      - --check-config
+      - "{{ service_recovery_config_path }}"
+  register: service_recovery_validation_after
+  changed_when: false
+
+- name: Decide whether a service restart is necessary
+  ansible.builtin.set_fact:
+    service_recovery_restart_required: >-
+      {{ (service_recovery_config_deploy.changed | default(false))
+         or service_recovery_process_before.rc != 0
+         or service_recovery_port_before.state | default('') != 'started'
+         or (service_recovery_http_enabled | bool
+             and service_recovery_http_before.status | default(0) != 200) }}
+  changed_when: false
+
+- name: Restart service only when config or active health requires it
+  ansible.builtin.systemd_service:
+    name: "{{ service_recovery_service_name }}"
+    state: restarted
+  when: service_recovery_restart_required | bool
+  register: service_recovery_restart
+
+- name: Keep service started without restart when active health passed
+  ansible.builtin.systemd_service:
+    name: "{{ service_recovery_service_name }}"
+    state: started
+  when: not service_recovery_restart_required | bool
+  register: service_recovery_start
+
+- name: Verify service process
+  ansible.builtin.command:
+    argv: [pgrep, -f, "{{ service_recovery_process_pattern }}"]
+  register: service_recovery_process_after
+  changed_when: false
+  failed_when: false
+
+- name: Verify service listening port
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: "{{ service_recovery_port | int }}"
+    connect_timeout: 2
+    timeout: 5
+    state: started
+  register: service_recovery_port_after
+  changed_when: false
+  failed_when: false
+
+- name: Verify enabled HTTP health endpoint
+  ansible.builtin.uri:
+    url: "{{ service_recovery_http_url }}"
+    method: GET
+    status_code: 200
+    return_content: false
+    timeout: 5
+  when: service_recovery_http_enabled | bool
+  register: service_recovery_http_after
+  changed_when: false
+  failed_when: false
+
+- name: Publish service recovery result
+  ansible.builtin.set_fact:
+    service_recovery_result:
+      changed: >-
+        {{ (service_recovery_config_deploy.changed | default(false))
+           or (service_recovery_restart.changed | default(false))
+           or (service_recovery_start.changed | default(false)) }}
+      before:
+        service: "{{ ansible_facts.services.get(service_recovery_service_name, {}) }}"
+        config_validation_rc: "{{ service_recovery_validation_before.rc }}"
+        process: "{{ 'PASS' if service_recovery_process_before.rc == 0 else 'FAIL' }}"
+        listening_port: "{{ 'PASS' if service_recovery_port_before.state | default('') == 'started' else 'FAIL' }}"
+        http_health: >-
+          {{ 'SKIP' if not service_recovery_http_enabled | bool
+             else ('PASS' if service_recovery_http_before.status | default(0) == 200 else 'FAIL') }}
+      after:
+        config_validation: "{{ 'PASS' if service_recovery_validation_after.rc == 0 else 'FAIL' }}"
+        process: "{{ 'PASS' if service_recovery_process_after.rc == 0 else 'FAIL' }}"
+        listening_port: "{{ 'PASS' if service_recovery_port_after.state | default('') == 'started' else 'FAIL' }}"
+        http_health: >-
+          {{ 'SKIP' if not service_recovery_http_enabled | bool
+             else ('PASS' if service_recovery_http_after.status | default(0) == 200 else 'FAIL') }}
+  changed_when: false

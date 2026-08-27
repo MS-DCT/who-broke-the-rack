@@ -1,0 +1,55 @@
+---
+- name: Recover an approved incident service
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate incident service recovery controller inputs
+      ansible.builtin.assert:
+        that:
+          - incident_id | default('') | string | trim | length > 0
+          - recovery_output_dir | default('') | string | trim | length > 0
+          - service_recovery_config is mapping
+        fail_msg: >-
+          incident_id, recovery_output_dir, and service_recovery_config are required.
+      run_once: true
+
+  roles:
+    - role: ../roles/service_recovery
+      vars:
+        service_recovery_execute: true
+        service_recovery_service_name: "{{ service_recovery_config.service_name }}"
+        service_recovery_package_name: "{{ service_recovery_config.package_name }}"
+        service_recovery_config_path: "{{ service_recovery_config.config_path }}"
+        service_recovery_config_content: "{{ service_recovery_config.config_content }}"
+        service_recovery_config_mode: "{{ service_recovery_config.config_mode }}"
+        service_recovery_validation_binary: "{{ service_recovery_config.validation_binary }}"
+        service_recovery_process_pattern: "{{ service_recovery_config.process_pattern }}"
+        service_recovery_port: "{{ service_recovery_config.port }}"
+        service_recovery_http_enabled: "{{ service_recovery_config.http_enabled }}"
+        service_recovery_http_url: "{{ service_recovery_config.http_url }}"
+
+  post_tasks:
+    - name: Ensure controller service recovery output directory exists
+      ansible.builtin.file:
+        path: "{{ recovery_output_dir }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Save host service recovery result on controller
+      ansible.builtin.copy:
+        content: >-
+          {{ {
+            'incident_id': incident_id,
+            'host': inventory_hostname,
+            'generated_at': ansible_date_time.iso8601,
+            'recovery': service_recovery_result
+          } | to_nice_json }}
+        dest: "{{ recovery_output_dir }}/{{ inventory_hostname }}.json"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
