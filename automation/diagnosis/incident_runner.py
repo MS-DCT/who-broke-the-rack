@@ -136,8 +136,97 @@ def merge_hardware_evidence(
     return merged
 
 
+BOOT_CHECK_NAMES = {
+    "post_state",
+    "post_status",
+    "boot_state",
+    "boot_status",
+    "os_boot",
+    "os_access",
+    "os_reachability",
+}
+
+
+def normalize_hardware_evidence(
+    hardware_document: dict[str, Any], *, incident_id: str, host: str
+) -> dict[str, Any]:
+    """Convert A's common hardware document to the internal results/checks shape."""
+    document_host = hardware_document.get("host")
+    if document_host is not None and document_host != host:
+        raise IncidentRunnerError(
+            f"Hardware evidence host {document_host!r} does not match target host {host!r}"
+        )
+    document_incident_id = hardware_document.get("incident_id")
+    if document_incident_id is not None and document_incident_id != incident_id:
+        raise IncidentRunnerError(
+            "Hardware evidence incident_id "
+            f"{document_incident_id!r} does not match runner incident_id {incident_id!r}"
+        )
+
+    # A legacy document already uses the diagnosis engine's native shape.
+    if "evidence" not in hardware_document:
+        return hardware_document
+
+    if str(hardware_document.get("category") or "").lower() != "hardware":
+        raise IncidentRunnerError("Hardware evidence 'category' must be 'hardware'")
+    evidence = hardware_document.get("evidence")
+    if not isinstance(evidence, dict):
+        raise IncidentRunnerError("Hardware evidence 'evidence' must be an object")
+
+    document_source = hardware_document.get("source")
+    document_timestamp = hardware_document.get("timestamp")
+    categorized_checks: dict[str, list[dict[str, Any]]] = {
+        "hardware": [],
+        "boot": [],
+    }
+    for name, item in evidence.items():
+        if not isinstance(item, dict):
+            raise IncidentRunnerError(f"Hardware evidence item {name!r} must be an object")
+        check = {
+            "name": name,
+            "result": item.get("result"),
+            "value": item.get("value"),
+            "detail": item.get("detail"),
+            "source": item.get("source", document_source),
+            "timestamp": document_timestamp,
+        }
+        layer = "boot" if snake_case(name) in BOOT_CHECK_NAMES else "hardware"
+        categorized_checks[layer].append(check)
+
+    iml_events = hardware_document.get("iml_events", [])
+    if not isinstance(iml_events, list):
+        raise IncidentRunnerError("Hardware evidence 'iml_events' must be a list")
+    for event in iml_events:
+        if not isinstance(event, dict):
+            raise IncidentRunnerError("Hardware evidence IML events must be objects")
+        categorized_checks["hardware"].append(
+            {
+                "name": "iml_event",
+                "message": event.get("message"),
+                "severity": event.get("severity"),
+                "created": event.get("created"),
+                "subsystem": event.get("subsystem"),
+            }
+        )
+
+    return {
+        "incident_id": document_incident_id,
+        "server_id": hardware_document.get("server_id"),
+        "host": document_host,
+        "timestamp": document_timestamp,
+        "results": [
+            {"category": category, "checks": checks}
+            for category, checks in categorized_checks.items()
+            if checks
+        ],
+    }
+
+
 def load_and_merge_hardware(
-    evidence: dict[str, Any], hardware_evidence: Any, host: str
+    evidence: dict[str, Any],
+    hardware_evidence: Any,
+    host: str,
+    incident_id: str | None = None,
 ) -> dict[str, Any]:
     if isinstance(hardware_evidence, (str, Path)):
         hardware_path = Path(hardware_evidence)
@@ -147,7 +236,13 @@ def load_and_merge_hardware(
             raise IncidentRunnerError(f"Could not load hardware evidence: {error}") from error
     else:
         payload = hardware_evidence
-    return merge_hardware_evidence(evidence, select_host_hardware(payload, host))
+    selected = select_host_hardware(payload, host)
+    normalized = normalize_hardware_evidence(
+        selected,
+        incident_id=incident_id or str(evidence.get("incident_id") or ""),
+        host=host,
+    )
+    return merge_hardware_evidence(evidence, normalized)
 
 
 def snake_case(value: Any) -> str | None:
@@ -262,7 +357,9 @@ def run_incident(
         else:
             evidence["incident_started_at"] = incident_started_at
         if hardware_evidence is not None:
-            evidence = load_and_merge_hardware(evidence, hardware_evidence, host)
+            evidence = load_and_merge_hardware(
+                evidence, hardware_evidence, host, incident_id=incident_id
+            )
         diagnosis = diagnose(evidence, incident_id=incident_id, server_id=host)
         result = {
             "incident_id": incident_id,

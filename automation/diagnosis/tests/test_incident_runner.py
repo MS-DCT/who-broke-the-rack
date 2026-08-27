@@ -9,11 +9,13 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
+from automation.diagnosis.diagnosis_engine import diagnose
 from automation.diagnosis.incident_runner import (
     IncidentRunnerError,
     flatten_evidence,
     load_and_merge_hardware,
     main,
+    normalize_hardware_evidence,
     run_ansible_collection,
     run_incident,
 )
@@ -114,7 +116,167 @@ def number_five_hardware(host):
     }
 
 
+def common_hardware(incident_id="INC-COMMON", host="dca-target01"):
+    return {
+        "incident_id": incident_id,
+        "server_id": "server-205",
+        "host": host,
+        "timestamp": "2026-08-27T00:00:00Z",
+        "category": "hardware",
+        "source": "redfish",
+        "evidence": {
+            "ilo_reachability": {
+                "result": "PASS",
+                "value": "reachable",
+                "detail": "Redfish API 정상 응답",
+                "source": "/redfish/v1/",
+            },
+            "power_state": {"result": "PASS", "value": "On"},
+            "system_health": {"result": "PASS", "value": "OK"},
+            "storage_health": {"result": "PASS", "value": "OK"},
+            "post_state": {"result": "PASS", "value": "FinishedPost"},
+            "boot_state": {"result": "PASS", "value": "OSLoginConfirmed"},
+        },
+        "iml_events": [],
+    }
+
+
 class IncidentRunnerTests(unittest.TestCase):
+    def test_common_hardware_dict_is_normalized_and_merged(self):
+        merged = load_and_merge_hardware(
+            collected_evidence("INC-COMMON", "dca-target01", "2026-08-27T00:00:00Z"),
+            common_hardware(),
+            "dca-target01",
+        )
+        categories = {item["category"]: item["checks"] for item in merged["results"]}
+        self.assertIn("hardware", categories)
+        self.assertIn("boot", categories)
+        self.assertIn("post_state", {item["name"] for item in categories["boot"]})
+
+    def test_common_hardware_json_path_is_normalized_and_merged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "hardware.json"
+            path.write_text(json.dumps(common_hardware()), encoding="utf-8")
+            merged = load_and_merge_hardware(
+                collected_evidence(
+                    "INC-COMMON", "dca-target01", "2026-08-27T00:00:00Z"
+                ),
+                path,
+                "dca-target01",
+            )
+        self.assertEqual(merged["results"][0]["category"], "hardware")
+
+    def test_legacy_results_checks_hardware_remains_supported(self):
+        merged = load_and_merge_hardware(
+            collected_evidence("INC-LEGACY", "dca-target01", None),
+            number_five_hardware("dca-target01"),
+            "dca-target01",
+        )
+        self.assertEqual(merged["results"][0]["checks"][0]["name"], "ilo_reachability")
+
+    def test_common_hardware_rejects_incident_id_mismatch(self):
+        with self.assertRaisesRegex(IncidentRunnerError, "incident_id"):
+            load_and_merge_hardware(
+                collected_evidence("INC-EXPECTED", "dca-target01", None),
+                common_hardware(incident_id="INC-DIFFERENT"),
+                "dca-target01",
+            )
+
+    def test_common_hardware_rejects_host_mismatch(self):
+        with self.assertRaises(IncidentRunnerError):
+            load_and_merge_hardware(
+                collected_evidence("INC-COMMON", "dca-target01", None),
+                common_hardware(host="different-host"),
+                "dca-target01",
+            )
+
+    def test_common_hardware_rejects_non_object_evidence(self):
+        hardware = common_hardware()
+        hardware["evidence"] = []
+        with self.assertRaisesRegex(IncidentRunnerError, "must be an object"):
+            normalize_hardware_evidence(
+                hardware, incident_id="INC-COMMON", host="dca-target01"
+            )
+
+    def test_common_post_state_finished_post_is_read_by_boot_rule(self):
+        hardware = common_hardware()
+        hardware["evidence"]["boot_state"] = {"result": "FAIL", "value": "failed"}
+        merged = load_and_merge_hardware(
+            collected_evidence("INC-COMMON", "dca-target01", "2026-08-27T00:00:00Z"),
+            hardware,
+            "dca-target01",
+        )
+        self.assertEqual(diagnose(merged)["rule_id"], "BOOT-OS-01")
+
+    def test_historical_storage_iml_warning_is_not_incident_related(self):
+        hardware = common_hardware()
+        hardware["evidence"]["storage_health"]["result"] = "FAIL"
+        hardware["iml_events"] = [{
+            "message": "old storage warning",
+            "severity": "Warning",
+            "created": "2026-08-20T00:00:00Z",
+            "subsystem": "storage",
+        }]
+        merged = load_and_merge_hardware(
+            collected_evidence("INC-COMMON", "dca-target01", "2026-08-27T00:00:00Z"),
+            hardware,
+            "dca-target01",
+        )
+        self.assertIsNone(diagnose(merged)["rule_id"])
+
+    def test_current_storage_iml_event_is_processed_separately(self):
+        hardware = common_hardware()
+        hardware["evidence"]["storage_health"]["result"] = "FAIL"
+        hardware["iml_events"] = [{
+            "message": "current storage warning",
+            "severity": "Warning",
+            "created": "2026-08-27T00:01:00Z",
+            "subsystem": "storage",
+        }]
+        merged = load_and_merge_hardware(
+            collected_evidence("INC-COMMON", "dca-target01", "2026-08-27T00:00:00Z"),
+            hardware,
+            "dca-target01",
+        )
+        iml_check = next(
+            check
+            for category in merged["results"]
+            for check in category["checks"]
+            if check["name"] == "iml_event"
+        )
+        self.assertEqual(
+            {
+                key: iml_check[key]
+                for key in ("message", "severity", "created", "subsystem")
+            },
+            {
+                "message": "current storage warning",
+                "severity": "Warning",
+                "created": "2026-08-27T00:01:00Z",
+                "subsystem": "storage",
+            },
+        )
+        diagnosis = diagnose(merged)
+        self.assertEqual(diagnosis["rule_id"], "HW-STORAGE-01")
+        self.assertIn(
+            {"layer": "hardware", "check_name": "iml_event", "result": "WARN"},
+            diagnosis["matched_evidence"],
+        )
+
+    def test_common_hardware_flatten_preserves_detail_source_and_timestamp(self):
+        merged = load_and_merge_hardware(
+            collected_evidence("INC-COMMON", "dca-target01", "2026-08-27T00:00:00Z"),
+            common_hardware(),
+            "dca-target01",
+        )
+        flattened = flatten_evidence(merged)
+        ilo = next(item for item in flattened if item["check_name"] == "ilo_reachability")
+        power = next(item for item in flattened if item["check_name"] == "power_state")
+        self.assertEqual(ilo["detail"], "Redfish API 정상 응답")
+        self.assertEqual(ilo["source"], "/redfish/v1/")
+        self.assertEqual(ilo["timestamp"], "2026-08-27T00:00:00Z")
+        self.assertEqual(power["source"], "redfish")
+
     def test_flat_evidence_normalizes_names_and_accepts_legacy_details(self):
         data = {
             "incident_id": "INC-FLAT",
