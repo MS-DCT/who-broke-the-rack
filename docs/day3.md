@@ -8,14 +8,364 @@ Day 3 팀별 작업 기록
 
 | Role | 담당 | Day 3 작업 |
 |---|---|---|
-| **A** | Hardware / Infrastructure | 작성 예정 |
+| **A** | Hardware / Infrastructure | Hardware Evidence 연동 및 Power·POST·Storage 진단 검증 |
 | **B** | Automation / Troubleshooting | Rule 기반 diagnosis Engine 구현 |
 | **C** | Platform / Visualization | FastAPI Incident Controller, Diagnosis 연동, Evidence/Diagnosis DB 저장, Incident Timeline 및 React Live Diagnosis UI 구현 |
 ---
 
 # 👤 A — Day 3
 
-> 작성 예정
+> Day 2에서 구축한 Hardware Collector의 Evidence를 B의 Incident Runner 및 Diagnosis Engine과 연동하여 공통 Hardware Evidence가 실제 진단 과정에서 정상적으로 처리되는지 검증
+
+> Power OFF, POST PASS, Storage Warning 상태를 시뮬레이션하여 Hardware / Boot Evidence가 Diagnosis Engine에 전달되는 최종 값을 확인
+
+---
+
+## Development / Architecture
+
+Day 3에서는 Day 2에서 구현한 Hardware Collector의 결과를 실제 Diagnosis 과정에서 사용할 수 있도록 Evidence 전달 구조와 Diagnosis Engine 연동을 검증
+
+전체 확인 흐름:
+
+```text
+HPE iLO / Redfish
+→ Hardware Collector
+→ Hardware Evidence JSON
+→ Incident Runner
+→ Evidence Normalize
+→ Diagnosis Engine
+→ Rule Evaluation
+```
+
+Hardware Evidence 기본 구조:
+
+```text
+incident_id
+server_id
+host
+timestamp
+category
+source
+evidence
+iml_events
+```
+
+`evidence` 내부에는 다음과 같은 Hardware / Boot 상태가 포함됨
+
+```text
+ilo_reachability
+power_state
+system_health
+post_state
+boot_os_state
+memory_health
+storage_health
+controller_N_health
+logical_drive_N_health
+physical_drive_N_health
+```
+
+---
+
+## Hardware Evidence Integration
+
+Day 2에서 생성한 Hardware Evidence JSON이 Incident Runner를 거쳐 Diagnosis Engine까지 정상적으로 전달되는지 확인
+
+Hardware Evidence의 상태값은 다음 기준을 사용
+
+```text
+PASS     명시적으로 정상
+WARN     동작 중이지만 Warning / Degraded 상태
+FAIL     명시적인 장애 상태
+UNKNOWN  상태 확인 불가 또는 Evidence 부족
+SKIP     해당 검사를 수행하지 않음
+```
+
+특히 Storage는 전체 상태뿐 아니라 실제 장치 단위 상태까지 Diagnosis Engine에서 사용할 수 있도록 전달 구조를 확인
+
+```text
+storage_health
+controller_0_health
+logical_drive_0_health
+physical_drive_0_health
+```
+
+장치 번호가 변경되어도 다음 형태의 Evidence를 처리할 수 있도록 Diagnosis Engine과의 호환성을 검증
+
+```text
+controller_N_health
+logical_drive_N_health
+physical_drive_N_health
+```
+
+---
+
+## Storage / IML Evidence Verification
+
+Storage 장애 판정 시 현재 Storage Health와 iLO IML Event를 함께 사용할 수 있도록 Evidence 구조를 검증
+
+Hardware Collector의 원본 JSON에서는 IML Event를 일반 Hardware 상태와 분리하여 별도 배열로 유지
+
+```text
+evidence
+└─ 현재 Hardware 상태
+
+iml_events
+└─ iLO Integrated Management Log
+```
+
+이를 통해 과거에 발생한 Storage 관련 IML Message가 존재하더라도 현재 장치 상태가 정상이라면 현재 Incident의 장애로 바로 판정하지 않도록 함
+
+실제 복구된 Hardware Evidence에서는 과거 Storage 관련 IML Event가 존재했지만 현재 Storage 상태는 정상으로 확인
+
+```text
+storage_health           PASS
+controller_0_health      PASS
+logical_drive_0_health   PASS
+physical_drive_0_health  PASS
+```
+
+과거 IML Event만으로 `HW-STORAGE-01`이 잘못 `MATCHED` 되지 않는 것을 확인
+
+---
+
+## HW-STORAGE-01 Integration Test
+
+장치 단위 Storage Evidence가 실제 Diagnosis Rule까지 전달되는지 확인하기 위해 테스트용 Storage 장애 상태를 구성
+
+실제 서버의 Storage 설정을 변경하지 않고 기존 Hardware Evidence를 복사한 테스트 데이터에서 다음 상태를 적용
+
+```text
+check_name : physical_drive_0_health
+result     : FAIL
+value      : Critical
+```
+
+현재 Incident 이후 발생한 것으로 설정한 Storage IML Event도 테스트 데이터에 추가
+
+```text
+message    : Storage Device Failure
+severity   : Critical
+subsystem  : storage
+created    : Incident 시작 이후
+```
+
+Diagnosis Engine 실행 결과:
+
+```text
+diagnosis_status : MATCHED
+rule_id          : HW-STORAGE-01
+severity         : CRITICAL
+```
+
+`matched_evidence`에는 장치 단위 Storage Evidence와 IML Event가 함께 포함되는 것을 확인
+
+```text
+hardware / physical_drive_0_health / FAIL
+hardware / iml_event               / FAIL
+```
+
+최종적으로 다음 흐름을 검증
+
+```text
+Device-level Storage Evidence
+        +
+Current Storage IML Event
+        ↓
+Incident Runner
+        ↓
+Diagnosis Engine
+        ↓
+HW-STORAGE-01 MATCHED
+```
+
+해당 테스트는 복사된 Evidence를 사용한 시뮬레이션 방식으로 수행했으며 실제 서버의 Storage 상태는 변경하지 않음
+
+---
+
+## Hardware / Boot Status Mapping Verification
+
+Hardware Collector에서 생성되는 주요 상태가 Incident Runner를 거쳐 Diagnosis Engine에 어떤 값으로 전달되는지 각각 검증
+
+### 1. Power OFF
+
+Power OFF 상태를 테스트 데이터에서 시뮬레이션하여 Diagnosis Engine에 전달되는 값을 확인
+
+Diagnosis 입력:
+
+```text
+layer      : hardware
+check_name : power_state
+result     : FAIL
+value      : Off
+detail     : TEST ONLY: simulated server power off
+source     : /redfish/v1/Systems/1/
+```
+
+Diagnosis 결과:
+
+```text
+diagnosis_status : INSUFFICIENT_EVIDENCE
+rule_id          : null
+root_cause       : Insufficient evidence to determine a root cause
+severity         : UNKNOWN
+```
+
+최종 전달값:
+
+```text
+Power OFF
+→ hardware
+→ power_state
+→ FAIL
+→ Off
+```
+
+Power OFF 상태가 `hardware / power_state / FAIL / Off`로 정상 전달되는 것을 확인
+
+Power 상태만으로는 현재 구현된 Root Cause Rule을 확정할 수 없으므로 `INSUFFICIENT_EVIDENCE`가 반환되는 것도 함께 확인
+
+---
+
+### 2. POST PASS
+
+Redfish에서 확인되는 정상 POST 완료 상태를 기준으로 전달값을 검증
+
+Redfish POST 상태:
+
+```text
+PostState : FinishedPost
+```
+
+Diagnosis 입력:
+
+```text
+layer      : boot
+check_name : post_state
+result     : PASS
+value      : FinishedPost
+detail     : POST completed successfully
+source     : /redfish/v1/Systems/1/Oem/Hp/PostState
+```
+
+Diagnosis 결과:
+
+```text
+diagnosis_status : INSUFFICIENT_EVIDENCE
+rule_id          : null
+root_cause       : Insufficient evidence to determine a root cause
+severity         : UNKNOWN
+```
+
+최종 전달 흐름:
+
+```text
+Redfish FinishedPost
+→ Collector PASS
+→ boot / post_state
+→ PASS / FinishedPost
+→ Diagnosis Engine
+```
+
+`FinishedPost` 상태가 `boot / post_state / PASS / FinishedPost`로 정상 전달되는 것을 확인
+
+---
+
+### 3. Storage Warning
+
+장치 단위 Storage Warning 상태가 Diagnosis Engine까지 유지되는지 테스트
+
+테스트 상태:
+
+```text
+check_name : physical_drive_0_health
+result     : WARN
+value      : Warning
+```
+
+Diagnosis 입력:
+
+```text
+layer      : hardware
+check_name : physical_drive_0_health
+result     : WARN
+value      : Warning
+detail     : TEST ONLY: simulated Physical Drive 0 warning
+source     : /redfish/v1/Systems/1/SmartStorage/ArrayControllers/0/DiskDrives/0/
+```
+
+Diagnosis 결과:
+
+```text
+diagnosis_status : INSUFFICIENT_EVIDENCE
+rule_id          : null
+root_cause       : Insufficient evidence to determine a root cause
+severity         : UNKNOWN
+```
+
+최종 전달값:
+
+```text
+Storage Warning
+→ hardware
+→ physical_drive_0_health
+→ WARN
+→ Warning
+```
+
+현재 Incident에 해당하는 Storage IML Event를 추가하지 않은 상태이므로 `HW-STORAGE-01`은 `MATCHED` 되지 않음
+
+이를 통해 Storage Warning만으로 장애 원인을 확정하지 않고 현재 Incident와 관련된 Storage IML Event가 함께 존재할 때 Rule을 판정하는 동작도 확인
+
+---
+
+## Test / Verification
+
+- 공통 Hardware Evidence JSON 구조 확인
+- Hardware Evidence → Incident Runner 전달 확인
+- Incident Runner → Diagnosis Engine 전달 확인
+- Hardware / Boot Layer 분류 확인
+- Device-level Storage Evidence 처리 확인
+- `controller_N_health` 처리 확인
+- `logical_drive_N_health` 처리 확인
+- `physical_drive_N_health` 처리 확인
+- 과거 IML Event의 현재 Incident 오매칭 방지 확인
+- 현재 Storage IML Event 기반 `HW-STORAGE-01` MATCHED 확인
+- Power OFF → `FAIL / Off` 전달 확인
+- POST `FinishedPost` → `PASS / FinishedPost` 전달 확인
+- Storage Warning → `WARN / Warning` 전달 확인
+- 실제 서버 상태를 변경하지 않는 시뮬레이션 테스트 수행
+
+---
+
+## Day 3 Outcome
+
+Day 3-2까지 A 담당 영역 검증 결과:
+
+```text
+Hardware Evidence 공통 포맷 연동          완료
+Incident Runner 연동                     완료
+Diagnosis Engine 전달                    완료
+Device-level Storage Evidence 처리       완료
+Storage / IML 연계 진단                  완료
+HW-STORAGE-01 E2E 검증                   완료
+Power OFF 상태 매핑                      완료
+POST PASS 상태 매핑                      완료
+Storage Warning 상태 매핑                완료
+```
+
+현재까지 다음 흐름이 정상적으로 동작하는 것을 확인
+
+```text
+Hardware Collector
+→ Common Hardware Evidence
+→ Incident Runner
+→ Diagnosis Engine
+→ Hardware / Boot Rule Evaluation
+```
+
+Day 3-2까지 Hardware / Boot Evidence의 Diagnosis 전달 및 상태 매핑 검증을 완료
+아직 진행하지 않은 Day 3 후속 작업은 완료 항목에 포함하지 않음
 
 ---
 
