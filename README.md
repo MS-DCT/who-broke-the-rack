@@ -38,7 +38,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 4 — 2026-08-26** | Blackhole Route 기반 Network Fault 재현 및 Cisco SVI·Data Plane·OPNsense 장애 범위 검증, 수동 복구 검증 | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증 | 작성예정 |
+| **Day 4 — 2026-08-26** | Blackhole Route 기반 Network Fault 재현 및 Cisco SVI·Data Plane·OPNsense 장애 범위 검증, 수동 복구 검증 | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증 | FastAPI Recovery API 및 React Recovery UI 구현 + NET-ROUTE-01 기반 Recovery Plan·Execute·Verification·CASE CLOSED 연동
 
 ➡️ [Day 4 상세 작업 기록](docs/day4.md)
 
