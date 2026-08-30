@@ -251,7 +251,7 @@ sudo ip route del blackhole 192.168.100.60/32
 
 # 👤 C — Day 4
 
-# Day 3 — Diagnosis & Incident Visualization 마무리
+#### Day 3 — Diagnosis & Incident Visualization 마무리
 
 #### Root Cause / Suspect Card 연동
 - Diagnosis Engine의 `rule_id`를 React Suspect Card와 연동
