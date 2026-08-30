@@ -28,7 +28,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 3 — 2026-08-25** | Hardware Evidence 연동 및 Power·POST·Storage 진단 검증 | Rule 기반 diagnosis Engine 구현 | FastAPI Incident Controller, Diagnosis 연동, Evidence/Diagnosis DB 저장, Incident Timeline 및 React Live Diagnosis UI 구현 |
+| **Day 3 — 2026-08-25** | Hardware Evidence 연동 및 Power·POST·Storage 진단 검증, iLO/OS Timestamp 및 NTP 동기화 검증 | Rule 기반 diagnosis Engine 구현 | FastAPI Incident Controller, Diagnosis 연동, Evidence/Diagnosis DB 저장, Incident Timeline 및 React Live Diagnosis UI 구현 |
 
 ➡️ [Day 3 상세 작업 기록](docs/day3.md)
 
