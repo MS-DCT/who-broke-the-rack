@@ -10,7 +10,7 @@ Day 4 팀별 작업 기록
 |---|---|---|
 | **A** | Hardware / Infrastructure | Blackhole Route 기반 Network Fault 재현 및 Cisco SVI·Data Plane·OPNsense 장애 범위 검증, 수동 복구 검증 |
 | **B** | Automation / Troubleshooting | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증|
-| **C** | Platform / Visualization | 작성 예정 |
+| **C** | Platform / Visualization | FastAPI Recovery API 및 React Recovery UI 구현 + NET-ROUTE-01 기반 Recovery Plan·Execute·Verification·CASE CLOSED 연동 |
 
 ---
 
