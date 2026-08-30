@@ -8,7 +8,7 @@ Day 3 팀별 작업 기록
 
 | Role | 담당 | Day 3 작업 |
 |---|---|---|
-| **A** | Hardware / Infrastructure | Hardware Evidence 연동 및 Power·POST·Storage 진단 검증 |
+| **A** | Hardware / Infrastructure | Hardware Evidence 연동 및 Power·POST·Storage 진단 검증, iLO/OS Timestamp 및 전체 노드 NTP 동기화 검증 |
 | **B** | Automation / Troubleshooting | Rule 기반 diagnosis Engine 구현 |
 | **C** | Platform / Visualization | FastAPI Incident Controller, Diagnosis 연동, Evidence/Diagnosis DB 저장, Incident Timeline 및 React Live Diagnosis UI 구현 |
 ---
@@ -19,11 +19,15 @@ Day 3 팀별 작업 기록
 
 > Power OFF, POST PASS, Storage Warning 상태를 시뮬레이션하여 Hardware / Boot Evidence가 Diagnosis Engine에 전달되는 최종 값을 확인
 
----
+> iLO Event Log와 서버 OS 간 Timestamp 차이를 검증하고 iLO SNTP 설정을 수정하여 시간 기준을 동기화
+
+> 프로젝트 전체 노드의 NTP / Chrony 상태를 재검증하고 Time Zone을 `Asia/Seoul` 기준으로 통일
 
 ## Development / Architecture
 
 Day 3에서는 Day 2에서 구현한 Hardware Collector의 결과를 실제 Diagnosis 과정에서 사용할 수 있도록 Evidence 전달 구조와 Diagnosis Engine 연동을 검증
+
+또한 Incident 발생 시각과 iLO Event 발생 시각을 정확하게 비교할 수 있도록 iLO / OS Timestamp 및 프로젝트 전체 노드의 시간 동기화 상태를 검증
 
 전체 확인 흐름:
 
@@ -50,7 +54,7 @@ evidence
 iml_events
 ```
 
-`evidence` 내부에는 다음과 같은 Hardware / Boot 상태가 포함됨
+`evidence` 내부에는 다음과 같은 Hardware / Boot 상태가 포함
 
 ```text
 ilo_reachability
@@ -119,13 +123,13 @@ iml_events
 실제 복구된 Hardware Evidence에서는 과거 Storage 관련 IML Event가 존재했지만 현재 Storage 상태는 정상으로 확인
 
 ```text
-storage_health           PASS
-controller_0_health      PASS
-logical_drive_0_health   PASS
-physical_drive_0_health  PASS
+storage_health            PASS
+controller_0_health       PASS
+logical_drive_0_health    PASS
+physical_drive_0_health   PASS
 ```
 
-과거 IML Event만으로 `HW-STORAGE-01`이 잘못 `MATCHED` 되지 않는 것을 확인
+과거 IML Event만으로 `HW-STORAGE-01`이 잘못 MATCHED 되지 않는 것을 확인
 
 ---
 
@@ -162,7 +166,7 @@ severity         : CRITICAL
 
 ```text
 hardware / physical_drive_0_health / FAIL
-hardware / iml_event               / FAIL
+hardware / iml_event                / FAIL
 ```
 
 최종적으로 다음 흐름을 검증
@@ -225,8 +229,6 @@ Power OFF 상태가 `hardware / power_state / FAIL / Off`로 정상 전달되는
 
 Power 상태만으로는 현재 구현된 Root Cause Rule을 확정할 수 없으므로 `INSUFFICIENT_EVIDENCE`가 반환되는 것도 함께 확인
 
----
-
 ### 2. POST PASS
 
 Redfish에서 확인되는 정상 POST 완료 상태를 기준으로 전달값을 검증
@@ -268,8 +270,6 @@ Redfish FinishedPost
 ```
 
 `FinishedPost` 상태가 `boot / post_state / PASS / FinishedPost`로 정상 전달되는 것을 확인
-
----
 
 ### 3. Storage Warning
 
@@ -313,9 +313,284 @@ Storage Warning
 → Warning
 ```
 
-현재 Incident에 해당하는 Storage IML Event를 추가하지 않은 상태이므로 `HW-STORAGE-01`은 `MATCHED` 되지 않음
+현재 Incident에 해당하는 Storage IML Event를 추가하지 않은 상태이므로 `HW-STORAGE-01`은 MATCHED 되지 않음
 
 이를 통해 Storage Warning만으로 장애 원인을 확정하지 않고 현재 Incident와 관련된 Storage IML Event가 함께 존재할 때 Rule을 판정하는 동작도 확인
+
+---
+
+## iLO Event Log / OS Timestamp Verification
+
+Hardware 및 Storage 장애 판정에서 iLO Event Log의 발생 시각과 Incident 시작 시각을 비교하므로, iLO Event Timestamp와 서버 OS 시간이 동일한 기준으로 기록되는지 검증
+
+### 1. Server OS Time / NTP 상태 확인
+
+Management Server인 `dca-mgmt01`에서 OS의 Local Time, UTC, RTC 및 NTP 동기화 상태를 확인
+
+확인 결과:
+
+```text
+Local Time               : KST
+Time Zone                : Asia/Seoul (KST, +0900)
+System clock synchronized: yes
+NTP service              : active
+RTC in local TZ          : no
+```
+
+`hwclock --show`를 통해 Hardware Clock도 함께 확인
+
+이를 통해 서버 OS 자체는 NTP를 통해 정상적으로 시간을 동기화하고 있음을 확인
+
+### 2. iLO Event Log Timestamp 확인
+
+HPE iLO 4의 `iLO Event Log`에서 실제 Browser Login / Logout Event의 Timestamp를 확인하고 동일 시점의 서버 OS 시간과 비교
+
+초기 비교 결과:
+
+```text
+iLO Event Log : 08/30/2026 15:40
+Server OS KST : 08/30/2026 16:40:55
+Server OS UTC : 08/30/2026 07:40:55
+```
+
+iLO Event Log와 서버 OS KST 사이에 약 1시간의 차이가 존재하는 것을 확인
+
+추가로 iLO Overview에서 iLO 자체 시간을 확인
+
+```text
+iLO Date/Time : Sun Aug 30 15:47:50 2026
+Server OS     : 약 16:47 KST
+```
+
+이를 통해 Event Log만의 표시 문제가 아니라 iLO 자체 시간이 서버 OS보다 약 1시간 느린 상태임을 확인
+
+### 3. iLO SNTP 설정 확인
+
+iLO Dedicated Network Port의 SNTP 설정을 확인한 결과 다음 상태
+
+```text
+Use DHCPv6 Supplied Time Settings : ON
+Primary Time Server               : 미설정
+Secondary Time Server             : 미설정
+Time Zone                         : Atlantic/Reykjavik (GMT)
+```
+
+서버 OS는 `Asia/Seoul (KST, +0900)`을 사용하고 있었으나 iLO는 `Atlantic/Reykjavik (GMT)`로 설정되어 있어 시간 기준이 일치하지 않음
+
+먼저 iLO Time Zone을 다음과 같이 변경
+
+```text
+Atlantic/Reykjavik (GMT)
+→ Asia/Seoul (GMT+09:00:00)
+```
+
+설정 적용을 위해 iLO Reset을 수행
+
+iLO Reset은 서버 OS 재부팅이 아닌 iLO Management Processor의 설정 재적용을 위해 수행
+
+### 4. Time Zone 변경 후 재검증
+
+Time Zone만 `Asia/Seoul`로 변경한 직후 iLO Overview를 다시 확인
+
+```text
+iLO Date/Time : Mon Aug 31 00:56:28 2026
+Server OS KST : Sun Aug 30 16:57:33 2026
+Server OS UTC : Sun Aug 30 07:57:33 2026
+```
+
+Time Zone 변경만으로는 문제가 해결되지 않았으며, iLO 시간이 서버 OS보다 약 8시간 빠르게 표시되는 것을 확인
+
+따라서 Time Zone 설정뿐 아니라 iLO가 참조하는 실제 NTP Time Server 설정도 필요하다고 판단
+
+### 5. Chrony NTP Source 확인 및 iLO SNTP 설정
+
+`dca-mgmt01`에서 현재 Chrony가 실제로 사용 중인 NTP Source를 확인
+
+```text
+chronyc sources -v
+
+^* 193.123.243.2
+```
+
+`^*` 상태를 통해 `193.123.243.2`가 현재 선택된 NTP Source임을 확인
+
+이를 기준으로 iLO SNTP 설정을 다음과 같이 변경
+
+```text
+Use DHCPv4 Supplied Time Settings : OFF
+Use DHCPv6 Supplied Time Settings : OFF
+Propagate NTP Time to Host        : OFF
+
+Primary Time Server               : 193.123.243.2
+Secondary Time Server             : 미설정
+Time Zone                         : Asia/Seoul (GMT+09:00:00)
+```
+
+서버 OS는 자체 Chrony를 통해 이미 정상적으로 동기화되고 있으므로 `Propagate NTP Time to Host`는 활성화하지 않음
+
+설정 적용 후 iLO가 지정한 NTP Server와 동기화되는 것을 확인
+
+```text
+iLO Date/Time : Sun Aug 30 17:10:30 2026
+```
+
+### 6. iLO Event Timestamp 최종 검증
+
+시간 동기화 후 새로운 Browser Login Event를 발생시키고 서버 OS 시간을 같은 시점에 다시 확인
+
+최종 결과:
+
+```text
+iLO Event Log
+Initial Update : 08/30/2026 17:16
+
+Server OS
+Local Time     : 08/30/2026 17:16:30 KST
+```
+
+iLO Event Log는 분 단위까지 표시되며 두 값 모두 `17:16`으로 일치
+
+최종적으로 다음 흐름을 검증
+
+```text
+iLO / OS Timestamp 불일치 발견
+        ↓
+OS NTP / Chrony 정상 여부 확인
+        ↓
+iLO SNTP / Time Zone 설정 확인
+        ↓
+Asia/Seoul Time Zone 적용
+        ↓
+Chrony Active NTP Source 확인
+        ↓
+iLO Primary Time Server 설정
+        ↓
+iLO Date/Time 정상화
+        ↓
+새 Event 발생
+        ↓
+iLO Event Log / OS Timestamp 일치 확인
+```
+
+이를 통해 현재 Incident 이후 발생한 iLO Event를 Timestamp 기준으로 판별할 때 사용할 시간 기준을 일치시킴
+
+---
+
+## All Node NTP / Chrony Verification
+
+Incident, Evidence 및 iLO Event Timestamp를 여러 서버에서 비교할 수 있도록 프로젝트에서 사용하는 전체 노드의 NTP / Chrony 동기화 상태를 재검증
+
+검증 대상:
+
+```text
+dca-target01 → 192.168.100.205
+dca-mgmt01   → 192.168.100.206
+dca-target02 → 192.168.100.207
+dca-spare01  → 192.168.100.208
+```
+
+각 노드에서 다음 항목을 확인
+
+```text
+Local Time
+Time Zone
+System clock synchronized
+NTP service
+Chrony Tracking
+Active NTP Source
+Leap Status
+```
+
+### `dca-mgmt01`
+
+확인 결과:
+
+```text
+Time Zone                 : Asia/Seoul (KST, +0900)
+System clock synchronized : yes
+NTP service               : active
+Reference ID              : 193.123.243.2
+Leap status               : Normal
+Active NTP Source         : ^* 193.123.243.2
+```
+
+Management Server의 NTP / Chrony 동기화가 정상임을 확인
+
+### `dca-target01`
+
+`dca-target01`은 Ubuntu를 사용하고 있으며 최초 확인 시 다른 노드와 달리 Time Zone이 UTC로 설정되어 있었음
+
+```text
+Time Zone                 : Etc/UTC (UTC, +0000)
+System clock synchronized : yes
+NTP service               : active
+Leap status               : Normal
+Active NTP Source         : ^* ntp-nts-1.ps5.canonical.com
+```
+
+NTP 동기화 자체는 정상이었지만 나머지 프로젝트 노드가 `Asia/Seoul`을 사용하고 있어 Time Zone을 통일
+
+```bash
+sudo timedatectl set-timezone Asia/Seoul
+```
+
+변경 후 재검증 결과:
+
+```text
+Local Time                : KST
+Time Zone                 : Asia/Seoul (KST, +0900)
+System clock synchronized : yes
+NTP service               : active
+Reference ID              : ntp-nts-1.ps5.canonical.com
+Leap status               : Normal
+Active NTP Source         : ^* ntp-nts-1.ps5.canonical.com
+```
+
+Time Zone 변경 후에도 기존 NTP / Chrony 동기화가 정상적으로 유지되는 것을 확인
+
+### `dca-target02`
+
+확인 결과:
+
+```text
+Time Zone                 : Asia/Seoul (KST, +0900)
+System clock synchronized : yes
+NTP service               : active
+Reference ID              : 211.222.238.30
+Leap status               : Normal
+Active NTP Source         : ^* 211.222.238.30
+```
+
+NTP / Chrony 동기화가 정상임을 확인
+
+### `dca-spare01`
+
+`dca-spare01`은 PXE Boot 환경 구성을 위해 Rocky Linux 10에서 Rocky Linux 9로 재설치한 상태에서 검증함
+
+확인 결과:
+
+```text
+Time Zone                 : Asia/Seoul (KST, +0900)
+System clock synchronized : yes
+NTP service               : active
+Leap status               : Normal
+Active NTP Source         : ^* _gateway
+```
+
+Rocky Linux 재설치 이후에도 NTP / Chrony 동기화가 정상적으로 동작하는 것을 확인
+
+### All Node Verification Result
+
+최종적으로 프로젝트에서 사용하는 4개 노드의 Time Zone과 시간 동기화 상태를 다음과 같이 확인
+
+```text
+dca-target01 → Asia/Seoul / NTP synchronized
+dca-mgmt01   → Asia/Seoul / NTP synchronized
+dca-target02 → Asia/Seoul / NTP synchronized
+dca-spare01  → Asia/Seoul / NTP synchronized
+```
+
+4개 노드 모두 `Asia/Seoul (KST, +0900)` 기준으로 통일하였으며 `System clock synchronized: yes`, `NTP service: active` 및 Chrony Active Source를 확인
 
 ---
 
@@ -332,15 +607,29 @@ Storage Warning
 - 과거 IML Event의 현재 Incident 오매칭 방지 확인
 - 현재 Storage IML Event 기반 `HW-STORAGE-01` MATCHED 확인
 - Power OFF → `FAIL / Off` 전달 확인
-- POST `FinishedPost` → `PASS / FinishedPost` 전달 확인
+- POST FinishedPost → `PASS / FinishedPost` 전달 확인
 - Storage Warning → `WARN / Warning` 전달 확인
 - 실제 서버 상태를 변경하지 않는 시뮬레이션 테스트 수행
+- iLO Event Log / Server OS Timestamp 비교
+- iLO와 Server OS 간 약 1시간 시간 차이 확인
+- iLO SNTP Time Zone 설정 확인
+- iLO Time Zone `Asia/Seoul` 변경 및 재검증
+- Chrony Active NTP Source 확인
+- iLO Primary Time Server 설정 및 SNTP 동기화 확인
+- iLO Event Log / Server OS Timestamp 최종 일치 확인
+- `dca-target01` NTP / Chrony 상태 확인
+- `dca-mgmt01` NTP / Chrony 상태 확인
+- `dca-target02` NTP / Chrony 상태 확인
+- `dca-spare01` NTP / Chrony 상태 확인
+- `dca-target01` UTC → KST Time Zone 통일
+- 전체 4개 노드 `Asia/Seoul` Time Zone 확인
+- 전체 4개 노드 NTP / Chrony 정상 동기화 확인
 
 ---
 
 ## Day 3 Outcome
 
-Day 3-2까지 A 담당 영역 검증 결과:
+A 담당 Day 3 검증 결과:
 
 ```text
 Hardware Evidence 공통 포맷 연동          완료
@@ -352,20 +641,35 @@ HW-STORAGE-01 E2E 검증                   완료
 Power OFF 상태 매핑                      완료
 POST PASS 상태 매핑                      완료
 Storage Warning 상태 매핑                완료
+iLO / OS Timestamp 차이 검증             완료
+iLO SNTP / Time Zone 설정 검증           완료
+iLO Event Timestamp 동기화               완료
+전체 노드 NTP / Chrony 재검증            완료
+전체 노드 Asia/Seoul Time Zone 통일      완료
 ```
 
-현재까지 다음 흐름이 정상적으로 동작하는 것을 확인
+최종적으로 다음 전체 흐름을 검증
 
 ```text
-Hardware Collector
+HPE iLO / Redfish
+→ Hardware Collector
 → Common Hardware Evidence
 → Incident Runner
 → Diagnosis Engine
 → Hardware / Boot Rule Evaluation
+
+iLO Event Log
+→ Timestamp 검증
+→ SNTP / NTP 동기화
+→ Incident Time 기준 일치
+
+All Project Nodes
+→ NTP / Chrony Verification
+→ Asia/Seoul Time Zone
+→ Synchronized Time Base
 ```
 
-Day 3-2까지 Hardware / Boot Evidence의 Diagnosis 전달 및 상태 매핑 검증을 완료
-아직 진행하지 않은 Day 3 후속 작업은 완료 항목에 포함하지 않음
+Day 3 A 담당 영역인 Hardware / POST 실제 값 검증, Diagnosis 전달값 확정, iLO Event Log Timestamp 검증 및 전체 노드 NTP / Chrony 동기화 재검증을 완료
 
 ---
 
