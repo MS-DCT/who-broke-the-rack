@@ -38,7 +38,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 4 — 2026-08-26** | 작성 예정 | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증 | 작성예정 |
+| **Day 4 — 2026-08-26** | Blackhole Route 기반 Network Fault 재현 및 Cisco SVI·Data Plane·OPNsense 장애 범위 검증, 수동 복구 검증 | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증 | 작성예정 |
 
 ➡️ [Day 4 상세 작업 기록](docs/day4.md)
 
@@ -48,7 +48,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 5 — 2026-08-27** | 작성 예정 | 작성 예정 | 작성예정 |
+| **Day 5 — 2026-08-27** | Nginx Service Fault 환경 구성 및 Data Plane·iLO 정상 상태 분리, OPNsense 장애 관측·수동 복구 검증 | 작성 예정 | 작성예정 |
 
 ➡️ [Day 5 상세 작업 기록](docs/day5.md)
 
