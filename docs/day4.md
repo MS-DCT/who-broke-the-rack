@@ -251,477 +251,78 @@ sudo ip route del blackhole 192.168.100.60/32
 
 # 👤 C — Day 4
 
-> day3내용인 pxe부트 최종 완료 
-
-# PXE Bare-Metal Provisioning
-
-This directory contains the PXE provisioning configuration used by
-**WHO BROKE THE RACK** to rebuild physical Server #4.
-
-## Target
-
-| Item | Value |
-|---|---|
-| Hardware | HPE ProLiant DL360 Gen9 |
-| Server | Server #4 / dca-spare01 |
-| iLO | 192.168.0.208 |
-| Final Data IP | 192.168.100.208 |
-| PXE NIC | Mellanox ConnectX-3 Pro |
-| PXE NIC MAC | 70:10:6f:a1:aa:41 |
-| DHCP Server | 192.168.100.90 |
-| PXE/TFTP Server | 192.168.100.60 |
-| Provisioned OS | Rocky Linux 9.8 |
-
----
-
-## Architecture
-
-```text
-Server #4
-    |
-    | PXE DHCP Request
-    v
-DHCP Server (.90)
-    |
-    | IP / Gateway / DNS
-    v
-Server #4
-
-Server #4
-    |
-    | PXE Request
-    v
-dnsmasq proxyDHCP (.60)
-    |
-    | Next Server = 192.168.100.60
-    | Boot File = pxelinux.0
-    v
-TFTP Server (.60)
-    |
-    | pxelinux.0
-    | Rocky 9.8 vmlinuz
-    | Rocky 9.8 initrd.img
-    v
-Rocky Installer
-    |
-    | HTTP
-    v
-192.168.100.60:8080
-    |
-    +-- rocky9-repo/
-    |
-    +-- ks/server4.ks
-```
-
----
-
-## Provisioning Flow
-
-```text
-iLO Network Boot
-        ↓
-Mellanox ConnectX-3 Pro PXE
-        ↓
-DHCP Server 192.168.100.90
-        ↓
-dnsmasq proxyDHCP 192.168.100.60
-        ↓
-TFTP / PXELINUX
-        ↓
-Rocky Linux 9.8 Kernel + initrd
-        ↓
-Local HTTP Repository
-        ↓
-Kickstart
-        ↓
-Disk Initialization
-        ↓
-Automatic LVM Partitioning
-        ↓
-Rocky Linux 9.8 Minimal Installation
-        ↓
-SSH Enablement
-        ↓
-Automatic Reboot
-        ↓
-SSH Validation
-        ↓
-Static IP 192.168.100.208
-```
-
----
-
-## PXE Server
-
-PXE server information:
-
-```text
-Hostname  : zt-storage
-IP        : 192.168.100.60
-Interface : bond0
-TFTP      : UDP 69
-HTTP      : TCP 8080
-```
-
-Required packages:
-
-```bash
-sudo apt update
-sudo apt install -y tftpd-hpa pxelinux syslinux-common dnsmasq-base
-```
-
-TFTP root:
-
-```text
-/srv/tftp
-```
-
-Example TFTP configuration:
-
-```ini
-TFTP_USERNAME="tftp"
-TFTP_DIRECTORY="/srv/tftp"
-TFTP_ADDRESS=":69"
-TFTP_OPTIONS="--secure"
-```
-
-Verify TFTP:
-
-```bash
-sudo systemctl status tftpd-hpa
-sudo ss -lunp | grep ':69 '
-```
-
----
-
-## proxyDHCP
-
-The existing DHCP server at:
-
-```text
-192.168.100.90
-```
-
-continues to provide:
-
-```text
-IP Address
-Subnet Mask
-Gateway
-DNS
-```
-
-The PXE server at:
-
-```text
-192.168.100.60
-```
-
-provides only PXE boot information through dnsmasq proxyDHCP:
-
-```text
-Next Server : 192.168.100.60
-Boot File   : pxelinux.0
-```
-
-The PXE configuration is restricted to Server #4 using its Mellanox NIC MAC:
-
-```text
-70:10:6f:a1:aa:41
-```
-
-This prevents unrelated PXE clients from receiving the Server #4 provisioning configuration.
-
----
-
-## PXELINUX
-
-Server #4 uses Legacy BIOS PXE.
-
-PXELINUX loads the Rocky Linux 9.8 installer:
-
-```text
-rocky9/vmlinuz
-rocky9/initrd.img
-```
-
-The Mellanox NIC is explicitly mapped as:
-
-```text
-pxe0
-```
-
-using:
-
-```text
-ifname=pxe0:70:10:6f:a1:aa:41
-```
-
-The installer obtains its temporary address through DHCP:
-
-```text
-ip=:::::pxe0:dhcp
-```
-
-Kickstart:
-
-```text
-inst.ks=http://192.168.100.60:8080/ks/server4.ks
-```
-
-Installation repository:
-
-```text
-inst.stage2=http://192.168.100.60:8080/rocky9-repo/
-```
-
----
-
-## Local Rocky Linux Repository
-
-Rocky Linux 9.8 Minimal ISO is mounted on the PXE server.
-
-Example mount:
-
-```bash
-sudo mkdir -p /srv/rocky-http/rocky9-repo
-
-sudo mount -o loop,ro \
-  /srv/rocky-http/Rocky-9.8-x86_64-minimal.iso \
-  /srv/rocky-http/rocky9-repo
-```
-
-The repository is served through HTTP:
-
-```bash
-nohup python3 -m http.server 8080 \
-  --bind 192.168.100.60 \
-  --directory /srv/rocky-http \
-  >/tmp/rocky-http.log 2>&1 &
-```
-
-Repository URL:
-
-```text
-http://192.168.100.60:8080/rocky9-repo/
-```
-
-Validation:
-
-```bash
-curl -I http://192.168.100.60:8080/rocky9-repo/.treeinfo
-
-curl -I \
-http://192.168.100.60:8080/rocky9-repo/Minimal/repodata/repomd.xml
-```
-
-Expected:
-
-```text
-HTTP/1.0 200 OK
-```
-
----
-
-## Kickstart
-
-Kickstart URL:
-
-```text
-http://192.168.100.60:8080/ks/server4.ks
-```
-
-The Kickstart configuration performs:
-
-```text
-Clear existing partitions on /dev/sda
-Automatic LVM partitioning
-Rocky Linux 9.8 Minimal installation
-Create rocky user
-Add rocky user to wheel group
-Enable SSH
-Enable firewall SSH service
-Automatic reboot after installation
-```
-
-WARNING:
-
-```text
-clearpart --all --drives=sda
-```
-
-removes all existing partitions from Server #4 `/dev/sda`.
-
-Provisioning should only be started after confirming that Server #4 is the intended Spare / Rebuild Target.
-
----
-
-## Password Handling
-
-Do not commit a real password or password hash to Git.
-
-The repository version of the Kickstart file should use:
-
-```text
-<REPLACE_WITH_SHA512_PASSWORD_HASH>
-```
-
-Generate the password hash only on the PXE server:
-
-```bash
-openssl passwd -6
-```
-
-Replace the placeholder only in the runtime copy.
-
-Do not commit:
-
-```text
-Real passwords
-Password hashes
-SSH private keys
-iLO credentials
-Administrator credentials
-```
-
----
-
-## Rocky Linux 10 Compatibility Finding
-
-Rocky Linux 10 was initially tested.
-
-The PXE firmware successfully downloaded:
-
-```text
-pxelinux.0
-vmlinuz
-initrd.img
-```
-
-However, networking failed after the Rocky Linux 10 installer kernel took control of the Mellanox ConnectX-3 Pro NIC.
-
-The target NIC uses the `mlx4` driver family.
-
-Rocky Linux 9.8 was then tested and the following drivers loaded successfully:
-
-```text
-mlx4_core
-mlx4_en
-```
-
-Rocky Linux 9.8 was therefore selected as the provisioning OS for Server #4.
-
----
-
-## Provisioning Result
-
-The unattended installation completed successfully.
-
-Initial DHCP address after installation:
-
-```text
-192.168.100.217
-```
-
-SSH validation:
-
-```bash
-ssh rocky@192.168.100.217
-```
-
-Successful login:
-
-```text
-[rocky@dca-spare01 ~]$
-```
-
----
-
-## Static IP Configuration
-
-After provisioning, Server #4 was changed from the temporary DHCP address:
-
-```text
-192.168.100.217
-```
-
-to the final project Data IP:
-
-```text
-192.168.100.208/24
-```
-
-Configuration:
-
-```bash
-sudo nmcli con mod pxe0 \
-  ipv4.method manual \
-  ipv4.addresses 192.168.100.208/24 \
-  ipv4.gateway 192.168.100.90 \
-  ipv4.dns 192.168.100.90 \
-  connection.autoconnect yes
-
-sudo nmcli con up pxe0
-```
-
-Final SSH:
-
-```bash
-ssh rocky@192.168.100.208
-```
-
----
-
-## Final Validation
-
-Commands:
-
-```bash
-ip -br addr
-ip route
-cat /etc/rocky-release
-```
-
-Final result:
-
-```text
-pxe0             UP   192.168.100.208/24
-
-default via 192.168.100.90 dev pxe0 proto static metric 100
-
-Rocky Linux release 9.8 (Blue Onyx)
-```
-
-Final system:
-
-```text
-Hostname : dca-spare01
-OS       : Rocky Linux 9.8
-NIC      : pxe0
-IP       : 192.168.100.208/24
-Gateway  : 192.168.100.90
-SSH      : Working
-```
-
----
-
-## Day 3 Status
-
-```text
-PXE Network Boot                 PASS
-DHCP                             PASS
-proxyDHCP                        PASS
-TFTP                             PASS
-PXELINUX                         PASS
-Rocky Linux 9.8 Kernel/initrd    PASS
-Mellanox mlx4 Networking         PASS
-Local HTTP Repository            PASS
-Kickstart Delivery               PASS
-Automatic Disk Provisioning      PASS
-Unattended OS Installation       PASS
-Automatic Reboot                 PASS
-SSH Access                       PASS
-Static IP 192.168.100.208        PASS
-```
-
-**Day 3 PXE Bare-Metal Provisioning Complete.**
+# Day 3 — Diagnosis & Incident Visualization 마무리
+
+#### Root Cause / Suspect Card 연동
+- Diagnosis Engine의 `rule_id`를 React Suspect Card와 연동
+- `NET-ROUTE-01`, `HW-STORAGE-01`, `BOOT-OS-01`, `SVC-HTTP-01` 결과를 각 장애 영역에 매핑
+- Root Cause가 확정되면 해당 Suspect Card를 강조하고 `CULPRIT FOUND` 상태를 표시하도록 구현
+- `NET-ROUTE-01` 테스트를 통해 Network 카드 강조 UI 정상 동작 확인
+
+#### Incident Evidence Timeline 검증
+- Incident / Evidence / Diagnosis / Action 이벤트를 Timestamp 기준으로 Timeline에 표시
+- `DETECTED → INVESTIGATING → ROOT_CAUSE_FOUND` 상태 흐름 및 Diagnosis 결과 표시 확인
+- 실제 Incident 실행을 통해 Evidence 수집 및 Timeline 저장/렌더링 정상 동작 확인
+
+### Day 3 Outcome
+- Incident Timeline API/DB 및 React 연동 완료
+- Root Cause와 Suspect Card 간 실시간 시각적 연동 완료
+- Diagnosis 결과를 기반으로 최종 장애 영역을 강조하는 UI 구현 완료
+
+### Day 4 — Network Recovery Platform Integration
+
+#### Recovery API 연동
+- 기존 Automation Recovery Runner를 FastAPI Backend와 연결
+- `POST /incidents/{incident_id}/recovery` Endpoint 구현
+- Recovery 요청 시 Incident와 최신 Diagnosis를 조회하여 Recovery Runner로 전달
+- Recovery 결과를 `Action` 테이블에 저장하고 Incident Timeline에 포함하도록 구현
+
+#### PLAN_ONLY Recovery
+- 실제 인프라 변경 없이 Recovery 계획을 검증할 수 있도록 `PLAN_ONLY` 모드 연동
+- `NET-ROUTE-01 → network_recovery` 매핑 정상 동작 확인
+- Recovery 결과:
+  - `mode = PLAN_ONLY`
+  - `result = PLANNED`
+  - `verification_status = NOT_RUN`
+- Timeline에 `ACTION / network_recovery / PLANNED` 이벤트 저장 확인
+
+#### Network Recovery UI
+- React에 `NETWORK RECOVERY` Panel 추가
+- Network 장애 진단 시 아래 Recovery 정보 표시
+  - Recovery Type: `Remove Blackhole Route`
+  - Target: `192.168.100.60/32`
+- `Plan Recovery` 버튼 구현
+- Recovery Plan 결과를 UI에서 `PLAN_ONLY / PLANNED` 상태로 표시
+- 실제 Recovery를 실행할 수 있는 `Execute Recovery` 버튼 및 상태 UI 추가
+- Recovery 성공 시 `CASE CLOSED`를 표시하도록 UI 로직 구현
+
+#### Real Network Recovery E2E Test
+- Target Server `dca-target02 (192.168.100.207)`에 실제 Network Fault 주입
+- `blackhole 192.168.100.60/32` Route를 이용하여 PXE 목적지 통신만 선택적으로 차단
+- 장애 상태에서:
+  - NIC Link 정상
+  - IP Address 정상
+  - Gateway `192.168.100.200` 정상
+  - Route 장애 감지
+  - `NET-ROUTE-01` Root Cause 판별 확인
+- FastAPI Recovery API를 통해 Ansible `network_recovery` 실행
+- Blackhole Route 자동 제거 성공
+- Recovery 후 Evidence 재수집 및 Verification 수행
+
+#### Recovery Verification
+- `nic_link = PASS`
+- `ip_address = PASS`
+- `gateway = PASS`
+- `routes = PASS`
+- `pxe_reachability = PASS`
+- SSH Process / Listening Port = PASS
+- 최종 결과:
+  - `mode = EXECUTE`
+  - `result = SUCCESS`
+  - `verification_status = VERIFIED`
+  - Incident Status = `CLOSED`
+
+### Day 4 Outcome
+- Network Fault → Diagnosis → Recovery Plan → Recovery Execution → Verification 흐름 연동 완료
+- FastAPI / DB / Timeline / React / Ansible Recovery 간 통합 완료
+- 실제 Network Route 장애를 자동 복구하고 Incident를 `CLOSED` 상태까지 전환하는 End-to-End Recovery 흐름 검증 완료
