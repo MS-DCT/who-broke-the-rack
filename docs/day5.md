@@ -10,7 +10,7 @@ Day 5 팀별 작업 기록
 |---|---|---|
 | **A** | Hardware / Infrastructure | dca-target02 Nginx Service Fault 환경 구성 및 Data Plane·iLO 정상 상태 분리, OPNsense 관점 Service 장애·수동 복구 검증 |
 | **B** | Automation / Troubleshooting | Nginx Service Recovery 및 대상 Service 기준 Evidence 검증 |
-| **C** | Platform / Visualization | 작성 예정 |
+| **C** | Platform / Visualization | Service Incident용 Suspect 제거 흐름(CULPRIT FOUND/CLEARED)과 Nginx Service Recovery UI 구현, Recovery·Verification·CASE CLOSED Timeline 및 Incident History 연동 |
 
 ---
 
@@ -240,4 +240,149 @@ sudo systemctl start nginx
 
 # 👤 C — Day 5
 
-> 작성 예정
+> Service Incident 진단 결과를 Suspect Card, Recovery UI, Timeline, Incident History에 연결해 장애 원인 판별부터 복구 결과까지 하나의 화면 흐름으로 시각화
+
+## 1. Service Incident Suspect 제거 흐름 구현
+
+### Development
+- Diagnosis Engine의 `rule_id`를 Suspect Card와 연결
+- `SVC-*` Rule이 MATCHED되면 `Service`를 Root Cause로 자동 선택
+- Root Cause로 판정된 Card에 `CULPRIT FOUND` 표시
+- Root Cause가 확정된 이후 정상 상태인 다른 Suspect Card에는 `CLEARED` 표시
+- CLEARED Card는 opacity 및 취소선 스타일을 적용해 조사 대상에서 제외된 상태를 시각적으로 구분
+
+### 검증
+- `dca-target02`의 Nginx Service를 중지한 상태에서 Incident Diagnosis 실행
+- Diagnosis 결과 `SVC-HTTP-01 / MATCHED` 확인
+- Service 계층이 Root Cause로 선택되는 흐름 확인
+- 정상 판정된 Suspect Card가 `CLEARED` 상태로 전환되는 UI 동작 확인
+
+### Outcome
+- Service Fault 발생 시 여러 장애 후보 중 Service가 최종 원인으로 좁혀지는 과정을 UI에서 확인 가능
+- 단순 Root Cause 출력이 아니라 실제 Troubleshooting의 Suspect Elimination 흐름을 시각화
+
+---
+
+## 2. Nginx Service Recovery UI 구현
+
+### Development
+- Diagnosis 결과가 `SVC-HTTP-01 / MATCHED`일 때만 Service Recovery Card가 나타나도록 구성
+- Recovery 대상 정보를 다음과 같이 고정해 Backend Recovery API와 연결
+
+```text
+Target: dca-target02
+Service: nginx.service
+Profile: dca_target02_nginx
+HTTP Health Check: enabled
+```
+
+- `Plan Recovery`와 `Execute Recovery`를 분리
+- Recovery 요청 시 다음 Service Recovery 변수를 Backend로 전달
+
+```json
+{
+  "profile": "dca_target02_nginx",
+  "config_content": null,
+  "http_enabled": true
+}
+```
+
+- Recovery 결과에서 다음 상태를 UI에 표시하도록 구현
+  - Recovery Mode
+  - Recovery Result
+  - Verification Status
+  - `CASE CLOSED`
+
+### 검증
+- Nginx Service Fault 진단 후 `SERVICE RECOVERY` Card 자동 표시 확인
+- `Recover Nginx Service`
+- `Target: dca-target02 / nginx.service`
+- `Plan Recovery` 및 `Execute Recovery` 흐름이 동일 Incident에 연결되는 구조 확인
+
+### Outcome
+- Root Cause가 Network이면 Network Recovery, Service이면 Service Recovery가 자동 선택되는 Rule 기반 Recovery UI 구성
+- Scenario별 별도 화면이 아닌 동일 Incident UI에서 Recovery Action을 선택할 수 있도록 통합
+
+---
+
+## 3. Recovery / Verification Timeline 확장
+
+### Development
+- 기존 Incident Timeline의 `ACTION` 결과를 Recovery 단계에 맞게 세분화
+- Recovery Action 저장 결과를 파싱하여 다음 Timeline Event를 생성
+
+```text
+RECOVERY
+VERIFICATION
+CASE_CLOSED
+```
+
+- PLAN_ONLY 상태는 `RECOVERY` Event로 표시
+- 실제 Recovery 수행 후 Verification 결과가 존재하면 `VERIFICATION` Event 추가
+- Incident 상태가 `CLOSED`가 되면 마지막에 `CASE_CLOSED` Event 추가
+- Frontend Timeline은 동일 Event Renderer를 사용해 Evidence / Diagnosis / Recovery / Verification을 시간 순으로 표시
+
+### Outcome
+- Incident 생성부터 장애 진단, Recovery, Verification, 종료까지 하나의 Timeline에서 추적 가능
+- Recovery 성공 여부뿐 아니라 복구 이후 검증 결과까지 UI에서 확인 가능
+- 최종 정상화 시 `CASE_CLOSED` 상태를 명확하게 표시
+
+---
+
+## 4. Incident History UI 구현
+
+### Development
+- Backend `/incidents` API를 사용해 기존 Incident 목록 조회
+- 최근 Incident를 시작 시간 기준으로 정렬
+- 최근 5개의 Incident를 화면에 표시
+- 각 Incident에 다음 정보 표시
+  - Incident ID
+  - Server ID
+  - Incident Status
+- 새로운 Incident 생성 또는 Recovery 상태 변경 시 History 자동 갱신
+- `Refresh History` 버튼을 통한 수동 갱신 기능 추가
+- 긴 상태 문자열이 Card 영역을 벗어나지 않도록 History Layout 및 Overflow Style 보정
+
+### 검증
+- `ROOT_CAUSE_FOUND`
+- `INSUFFICIENT_EVIDENCE`
+- `CLOSED`
+
+등 서로 다른 Incident 상태가 History 목록에 정상 표시되는 것 확인
+
+### Outcome
+- 현재 Incident뿐 아니라 이전 장애 처리 기록까지 동일 Dashboard에서 확인 가능
+- 반복 시연 시 각 Incident의 상태 변화를 비교할 수 있는 최소 Incident History 기능 확보
+
+---
+
+## 5. Service Fault UI 통합 검증
+
+### 검증
+- `dca-target02` Nginx Service Fault 상태에서 실제 Incident 생성
+- Service Evidence 기반 Diagnosis 수행
+- `SVC-HTTP-01 / MATCHED` 확인
+- Service Root Cause 및 `SERVICE RECOVERY` Card 자동 표시 확인
+- React Production Build 정상 완료
+- Incident History 및 Timeline UI 동작 확인
+
+### 참고
+- C의 Service Recovery UI와 Backend API 연결은 완료
+- C 테스트 환경의 `.206`에는 일부 Service Recovery Automation 코드가 이전 mock-only 버전으로 남아 있어 C 화면을 통한 최종 Execute 통합 검증은 해당 로컬 코드 동기화 후 추가 확인 가능
+- B 영역에서는 실제 Nginx stop → Recovery E2E `SUCCESS / VERIFIED`가 별도로 검증됨
+
+---
+
+## Day 5 C 최종 결과
+
+- `SVC-HTTP-01` 기반 Service Root Cause 자동 시각화
+- Service Suspect `CULPRIT FOUND` 표시 구현
+- 정상 Suspect `CLEARED` 처리 및 시각적 제거 효과 구현
+- Nginx Service Recovery Card 구현
+- Network / Service Rule에 따른 Recovery UI 자동 분기
+- `Plan Recovery → Execute Recovery` UI 흐름 구현
+- Recovery Mode / Result / Verification 상태 표시
+- `RECOVERY → VERIFICATION → CASE_CLOSED` Timeline 구조 구현
+- 최근 5개 Incident를 표시하는 Incident History UI 구현
+- 실제 Nginx Fault에서 `SVC-HTTP-01 / MATCHED` 및 Service Recovery UI 노출 확인
+- **Day 5 C — Service Incident 시각화·Recovery UI·Verification Timeline·Incident History 구현 완료**
