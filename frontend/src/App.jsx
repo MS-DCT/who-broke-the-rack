@@ -6,6 +6,7 @@ function App() {
   const [servers, setServers] = useState([]);
   const [evidence, setEvidence] = useState([]);
   const [error, setError] = useState("");
+  const [liveDiagnosis, setLiveDiagnosis] = useState(null);
 
   const CURRENT_INCIDENT = "DAY2-207";
 
@@ -30,41 +31,23 @@ function App() {
       });
   }, []);
 
-  // Day 2 실제 Incident Evidence만 사용
   const day2Evidence = evidence.filter(
     (item) => item.incident_id === CURRENT_INCIDENT
   );
 
-const getStatusFromItems = (items) => {
-  // SKIP은 상태 판정에서 제외
-  const validItems = items.filter(
-    (item) => item.result !== "SKIP"
-  );
+  const getStatusFromItems = (items) => {
+    const validItems = items.filter(
+      (item) => item.result !== "SKIP"
+    );
 
-  if (validItems.length === 0) {
+    if (validItems.length === 0) return "UNKNOWN";
+    if (validItems.some((item) => item.result === "FAIL")) return "SUSPECT";
+    if (validItems.some((item) => item.result === "WARN")) return "SUSPECT";
+    if (validItems.some((item) => item.result === "UNKNOWN")) return "UNKNOWN";
+    if (validItems.every((item) => item.result === "PASS")) return "NORMAL";
     return "UNKNOWN";
-  }
+  };
 
-  if (validItems.some((item) => item.result === "FAIL")) {
-    return "SUSPECT";
-  }
-
-  if (validItems.some((item) => item.result === "WARN")) {
-    return "SUSPECT";
-  }
-
-  if (validItems.some((item) => item.result === "UNKNOWN")) {
-    return "UNKNOWN";
-  }
-
-  if (validItems.every((item) => item.result === "PASS")) {
-    return "NORMAL";
-  }
-
-  return "UNKNOWN";
-};
-
-  // Suspect Card별 Evidence 분류
   const powerEvidence = day2Evidence.filter(
     (item) =>
       item.layer === "HARDWARE" &&
@@ -96,36 +79,38 @@ const getStatusFromItems = (items) => {
   );
 
   const suspects = [
-    {
-      name: "Power",
-      status: getStatusFromItems(powerEvidence),
-    },
-    {
-      name: "Memory",
-      status: getStatusFromItems(memoryEvidence),
-    },
-    {
-      name: "Storage",
-      status: getStatusFromItems(storageEvidence),
-    },
-    {
-      name: "Network",
-      status: getStatusFromItems(networkEvidence),
-    },
-    {
-      name: "OS",
-      status: getStatusFromItems(osEvidence),
-    },
-    {
-      name: "Service",
-      status: getStatusFromItems(serviceEvidence),
-    },
+    { name: "Power", status: getStatusFromItems(powerEvidence) },
+    { name: "Memory", status: getStatusFromItems(memoryEvidence) },
+    { name: "Storage", status: getStatusFromItems(storageEvidence) },
+    { name: "Network", status: getStatusFromItems(networkEvidence) },
+    { name: "OS", status: getStatusFromItems(osEvidence) },
+    { name: "Service", status: getStatusFromItems(serviceEvidence) },
   ];
+
+  const culpritFromRule = (ruleId) => {
+    if (!ruleId) return null;
+    if (ruleId.startsWith("HW-STORAGE")) return "Storage";
+    if (ruleId.startsWith("BOOT-OS")) return "OS";
+    if (ruleId.startsWith("NET-")) return "Network";
+    if (ruleId.startsWith("SVC-")) return "Service";
+    return null;
+  };
+
+  const culpritName =
+    liveDiagnosis?.diagnosis?.diagnosis_status === "MATCHED"
+      ? culpritFromRule(liveDiagnosis?.diagnosis?.rule_id)
+      : null;
 
   const getStatusLabel = (status) => {
     if (status === "NORMAL") return "정상";
     if (status === "SUSPECT") return "의심";
     return "조사 전";
+  };
+
+  const getSuspectLabel = (suspect) => {
+    if (culpritName === suspect.name) return "CULPRIT FOUND";
+    if (culpritName && suspect.status === "NORMAL") return "CLEARED";
+    return getStatusLabel(suspect.status);
   };
 
   return (
@@ -137,11 +122,10 @@ const getStatusFromItems = (items) => {
 
       {error && <div className="error">{error}</div>}
 
-      <IncidentPanel />
+      <IncidentPanel onDiagnosisComplete={setLiveDiagnosis} />
 
       <section>
         <h2>Rack Overview</h2>
-
         <div className="server-grid">
           {servers.map((server) => (
             <div className="server-card" key={server.server_id}>
@@ -149,21 +133,9 @@ const getStatusFromItems = (items) => {
                 <h3>{server.hostname}</h3>
                 <span className="status">{server.status}</span>
               </div>
-
-              <p>
-                <strong>Server ID</strong>
-                <span>{server.server_id}</span>
-              </p>
-
-              <p>
-                <strong>Role</strong>
-                <span>{server.role}</span>
-              </p>
-
-              <p>
-                <strong>Data Plane IP</strong>
-                <span>{server.ip}</span>
-              </p>
+              <p><strong>Server ID</strong><span>{server.server_id}</span></p>
+              <p><strong>Role</strong><span>{server.role}</span></p>
+              <p><strong>Data Plane IP</strong><span>{server.ip}</span></p>
             </div>
           ))}
         </div>
@@ -181,20 +153,33 @@ const getStatusFromItems = (items) => {
         </div>
 
         <div className="suspect-grid">
-          {suspects.map((suspect) => (
-            <div
-              className={`suspect-card suspect-${suspect.status.toLowerCase()}`}
-              key={suspect.name}
-            >
-              <span className="suspect-name">{suspect.name}</span>
+          {suspects.map((suspect) => {
+            const isCulprit = culpritName === suspect.name;
+            const isCleared =
+              Boolean(culpritName) &&
+              !isCulprit &&
+              suspect.status === "NORMAL";
 
-              <span
-                className={`suspect-status suspect-status-${suspect.status.toLowerCase()}`}
+            return (
+              <div
+                className={`suspect-card suspect-${suspect.status.toLowerCase()} ${
+                  isCulprit ? "suspect-culprit" : ""
+                } ${
+                  isCleared ? "suspect-cleared" : ""
+                }`}
+                key={suspect.name}
               >
-                {getStatusLabel(suspect.status)}
-              </span>
-            </div>
-          ))}
+                <span className="suspect-name">{suspect.name}</span>
+                <span
+                  className={`suspect-status suspect-status-${suspect.status.toLowerCase()} ${
+                    isCulprit ? "culprit-status" : ""
+                  }`}
+                >
+                  {getSuspectLabel(suspect)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -204,7 +189,6 @@ const getStatusFromItems = (items) => {
             <h2>Evidence Timeline</h2>
             <p>Real Diagnostic Evidence — {CURRENT_INCIDENT}</p>
           </div>
-
           <span className="evidence-count">
             {day2Evidence.length} Evidence
           </span>
@@ -218,20 +202,15 @@ const getStatusFromItems = (items) => {
                   <span className="layer">{item.layer}</span>
                   <h3>{item.check_name}</h3>
                 </div>
-
-                <span
-                  className={`result result-${item.result.toLowerCase()}`}
-                >
+                <span className={`result result-${item.result.toLowerCase()}`}>
                   {item.result}
                 </span>
               </div>
-
               <div className="evidence-details">
                 <span>{item.incident_id}</span>
                 <span>{item.server_id}</span>
                 <span>Severity: {item.severity}</span>
               </div>
-
               <p className="detail-text">{item.details}</p>
             </div>
           ))}
