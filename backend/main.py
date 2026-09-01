@@ -11,6 +11,10 @@ from incident_workflow import (
     run_incident_workflow,
     IncidentRunnerError,
 )
+from recovery_service import (
+    run_incident_recovery,
+    RecoveryRunnerError,
+)
 
 # SQLite DB 및 테이블 생성
 Base.metadata.create_all(bind=engine)
@@ -138,6 +142,7 @@ def get_actions(db: Session = Depends(get_db)):
         ]
     }
 
+
 @app.post("/collect/{server_id}")
 def collect_evidence(
     server_id: str,
@@ -169,6 +174,7 @@ def collect_evidence(
             detail=str(e)
         )
 
+
 @app.post("/incidents/start/{server_id}")
 def start_incident(
     server_id: str,
@@ -194,6 +200,7 @@ def start_incident(
             detail=str(e)
         )
 
+
 @app.get("/incidents/{incident_id}/timeline")
 def incident_timeline(
     incident_id: str,
@@ -216,6 +223,7 @@ def incident_timeline(
             status_code=500,
             detail=str(e)
         )
+
 
 @app.post("/incidents/{incident_id}/diagnose")
 def diagnose_incident(
@@ -247,6 +255,57 @@ def diagnose_incident(
     except Exception as e:
         db.rollback()
 
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
+@app.post("/incidents/{incident_id}/recovery")
+def recover_incident(
+    incident_id: str,
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    recovery_vars = payload.get("recovery_vars")
+    execute = payload.get("execute", False)
+
+    if not isinstance(recovery_vars, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="recovery_vars가 필요합니다."
+        )
+
+    if not isinstance(execute, bool):
+        raise HTTPException(
+            status_code=400,
+            detail="execute는 boolean이어야 합니다."
+        )
+
+    try:
+        return run_incident_recovery(
+            db=db,
+            incident_id=incident_id,
+            recovery_vars=recovery_vars,
+            execute=execute,
+        )
+
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    except RecoveryRunnerError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
+    except Exception as e:
+        db.rollback()
         raise HTTPException(
             status_code=500,
             detail=str(e)
