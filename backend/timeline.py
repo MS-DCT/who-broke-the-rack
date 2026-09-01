@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from models import Incident, Evidence, Action, Diagnosis
@@ -82,8 +83,7 @@ def get_incident_timeline(
             }
         )
 
-
-    # Action 이벤트
+    # Recovery / Verification 이벤트
     action_list = (
         db.query(Action)
         .filter(
@@ -93,13 +93,71 @@ def get_incident_timeline(
     )
 
     for action in action_list:
+        try:
+            payload = (
+                json.loads(action.details)
+                if isinstance(action.details, str)
+                else {}
+            )
+        except (json.JSONDecodeError, TypeError):
+            payload = {}
+
+        mode = payload.get("mode", "UNKNOWN")
+        result = payload.get(
+            "result",
+            action.status
+        )
+        recovery_action = payload.get(
+            "action",
+            action.action_type
+        )
+
         timeline.append(
             {
-                "type": "ACTION",
-                "name": action.action_type,
-                "status": action.status,
-                "details": action.details,
+                "type": "RECOVERY",
+                "name": recovery_action,
+                "status": result,
+                "details": (
+                    f"Mode: {mode} / "
+                    f"Action: {recovery_action}"
+                ),
                 "timestamp": action.timestamp
+            }
+        )
+
+        verification_status = payload.get(
+            "verification_status"
+        )
+
+        if (
+            mode != "PLAN_ONLY"
+            and verification_status
+        ):
+            timeline.append(
+                {
+                    "type": "VERIFICATION",
+                    "name": "RECOVERY_VERIFICATION",
+                    "status": verification_status,
+                    "details": (
+                        f"{recovery_action} verification result"
+                    ),
+                    "timestamp": action.timestamp
+                }
+            )
+
+    if (
+        incident.status == "CLOSED"
+        and incident.ended_at is not None
+    ):
+        timeline.append(
+            {
+                "type": "INCIDENT",
+                "name": "CASE_CLOSED",
+                "status": "CLOSED",
+                "details": (
+                    "Recovery and verification completed successfully"
+                ),
+                "timestamp": incident.ended_at
             }
         )
 
