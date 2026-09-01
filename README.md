@@ -48,7 +48,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 5 — 2026-08-27** | Nginx Service Fault 환경 구성 및 Data Plane·iLO 정상 상태 분리, OPNsense 장애 관측·수동 복구 검증 | Nginx allowlist Recovery와 service-target Evidence 검증 구현; 실제 stop/recovery E2E `SUCCESS/VERIFIED` 완료 | 작성예정 |
+| **Day 5 — 2026-08-27** | Nginx Service Fault 환경 구성 및 Data Plane·iLO 정상 상태 분리, OPNsense 장애 관측·수동 복구 검증 | Nginx allowlist Recovery와 service-target Evidence 검증 구현; 실제 stop/recovery E2E `SUCCESS/VERIFIED` 완료 | Service Incident용 Suspect 제거 흐름(CULPRIT FOUND/CLEARED)과 Nginx Service Recovery UI 구현, Recovery·Verification·CASE CLOSED Timeline 및 Incident History 연동 |
 
 ➡️ [Day 5 상세 작업 기록](docs/day5.md)
 
