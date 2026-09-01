@@ -1,12 +1,32 @@
 ---
 service_recovery_execute: false
+service_recovery_profile: ""
 service_recovery_service_name: ""
 service_recovery_package_name: ""
 service_recovery_config_path: ""
 service_recovery_config_content: null
+service_recovery_config_restore_requested: false
 service_recovery_config_mode: "0644"
-service_recovery_validation_binary: ""
+service_recovery_validation_argv: []
 service_recovery_process_pattern: ""
 service_recovery_port: 0
 service_recovery_http_enabled: false
 service_recovery_http_url: ""
+service_recovery_external_http_url: ""
+service_recovery_expected_body: null
+service_recovery_allowed_profiles:
+  day5_mock_http:
+    service_name: wbr-day5-mock.service
+    package_name: wbr-day5-mock
+    config_path: /etc/who-broke-the-rack/day5-mock.conf
+    validation_argv:
+      - /usr/bin/wbr-day5-mock
+      - --check-config
+      - /etc/who-broke-the-rack/day5-mock.conf
+  dca_target02_nginx:
+    service_name: nginx.service
+    package_name: nginx
+    config_path: /etc/nginx/default.d/health.conf
+    validation_argv:
+      - /usr/sbin/nginx
+      - -t

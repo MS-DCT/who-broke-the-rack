@@ -69,3 +69,8 @@ diagnostic_services:
   - name: ssh
     process: sshd
     port: 22
+  - name: nginx
+    process: nginx
+    port: 80
+    health_url: http://127.0.0.1/health
+    expected_status: 200

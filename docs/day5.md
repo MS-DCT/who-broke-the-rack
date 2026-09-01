@@ -9,7 +9,7 @@ Day 5 팀별 작업 기록
 | Role | 담당 | Day 5 작업 |
 |---|---|---|
 | **A** | Hardware / Infrastructure | dca-target02 Nginx Service Fault 환경 구성 및 Data Plane·iLO 정상 상태 분리, OPNsense 관점 Service 장애·수동 복구 검증 |
-| **B** | Automation / Troubleshooting | 작성 예정 |
+| **B** | Automation / Troubleshooting | Nginx Service Recovery 및 대상 Service 기준 Evidence 검증 |
 | **C** | Platform / Visualization | 작성 예정 |
 
 ---
@@ -229,7 +229,12 @@ sudo systemctl start nginx
 
 ## 👤 B — Day 5
 
-> 작성 예정
+- `dca_target02_nginx` allowlist와 고정 `/usr/sbin/nginx -t` argv를 적용했다.
+- `config_content: null`은 Config backup/deploy/rollback을 건너뛰고 Nginx만 시작하도록 분리했다.
+- Flat Evidence 키 계약을 유지하면서 service target을 `source`에 보존하고, SSH의 미설정 HTTP `SKIP`을 Nginx 판정에서 제외한다.
+- `ssh SKIP + nginx PASS`는 `VERIFIED`, Nginx HTTP FAIL/UNKNOWN/SKIP/누락은 `ESCALATION_REQUIRED`로 mock 검증했다.
+- Incident `INC-NGINX-FINAL-20260901T134444Z`로 실제 Nginx stop/recovery E2E를 수행해 `SVC-HTTP-01/MATCHED`, PLAN_ONLY, exit 0, `SUCCESS/VERIFIED`를 확인했다.
+- Config checksum은 전후 `8732f8534d075efed49c95f68b9a457b487f2b8b9213de9f6f79041b3dc62390`으로 동일했고, SSH HTTP `SKIP`은 `excluded_checks`로 분리됐다. 종료 시 Nginx active와 내부·외부 `/health` HTTP 200/body `OK`를 확인했다.
 
 ---
 

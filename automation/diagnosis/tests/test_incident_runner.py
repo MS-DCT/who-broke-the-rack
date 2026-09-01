@@ -358,6 +358,27 @@ class IncidentRunnerTests(unittest.TestCase):
         self.assertEqual(result[0]["detail"], "Health=OK, State=Enabled")
         self.assertNotIn("details", result[0])
 
+    def test_flat_service_evidence_preserves_target_in_existing_source_field(self):
+        data = {
+            "incident_id": "INC-SERVICE-TARGET",
+            "host": "dca-target02",
+            "results": [
+                {
+                    "category": "service",
+                    "checks": [
+                        {
+                            "name": "http_health",
+                            "target": "nginx",
+                            "status": "PASS",
+                        }
+                    ],
+                }
+            ],
+        }
+        result = flatten_evidence(data)
+        self.assertEqual(result[0]["source"], "nginx")
+        self.assertEqual(set(result[0]), EVIDENCE_KEYS)
+
     def test_public_function_signature(self):
         parameters = inspect.signature(run_incident).parameters
         self.assertEqual(list(parameters), [

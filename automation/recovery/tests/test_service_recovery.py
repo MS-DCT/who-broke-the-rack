@@ -46,7 +46,7 @@ def service_vars(**overrides):
     return value
 
 
-def verification_evidence(**overrides):
+def verification_evidence(service_target=None, **overrides):
     results = {
         "nic_link": "PASS",
         "ip_address": "PASS",
@@ -57,7 +57,7 @@ def verification_evidence(**overrides):
         "http_health": "PASS",
     }
     results.update(overrides)
-    return [
+    evidence = [
         {
             "layer": (
                 "service"
@@ -70,6 +70,11 @@ def verification_evidence(**overrides):
         }
         for name, result in results.items()
     ]
+    if service_target is not None:
+        for item in evidence:
+            if item["layer"] == "service":
+                item["source"] = service_target
+    return evidence
 
 
 def service_recovery_output():
@@ -86,6 +91,57 @@ def service_recovery_output():
 
 
 class ServiceRecoveryTests(unittest.TestCase):
+    @patch(
+        "automation.recovery.recovery_runner.collect_verification",
+        return_value=verification_evidence(service_target="nginx"),
+    )
+    @patch(
+        "automation.recovery.recovery_runner.run_service_recovery_playbook",
+        return_value=service_recovery_output(),
+    )
+    def test_exact_cli_null_config_runs_service_only_and_returns_verified_json(
+        self, mocked_service, _mocked_verification
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            diagnosis_path = Path(directory) / "diagnosis.json"
+            vars_path = Path(directory) / "vars.json"
+            diagnosis_path.write_text(json.dumps(service_diagnosis()), encoding="utf-8")
+            vars_path.write_text(
+                json.dumps(
+                    {
+                        "profile": "dca_target02_nginx",
+                        "config_content": None,
+                        "http_enabled": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            stdout = StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "recovery_runner.py",
+                    "--incident-id",
+                    "INC-SVC-001",
+                    "--host",
+                    "dca-target02",
+                    "--diagnosis-json",
+                    str(diagnosis_path),
+                    "--recovery-vars",
+                    str(vars_path),
+                    "--execute",
+                ],
+            ), patch("sys.stdout", stdout):
+                exit_code = main()
+
+        result = json.loads(stdout.getvalue())
+        normalized = mocked_service.call_args.kwargs["recovery_vars"]
+        self.assertIsNone(normalized["config_content"])
+        self.assertIs(normalized["config_restore_requested"], False)
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(result["result"], "SUCCESS")
+        self.assertEqual(result["verification_status"], "VERIFIED")
+
     @patch("automation.recovery.recovery_runner.run_recovery_playbook")
     @patch("automation.recovery.recovery_runner.run_service_recovery_playbook")
     def test_rule_dispatch_selects_service_role(self, mocked_service, mocked_network):
@@ -199,6 +255,34 @@ class ServiceRecoveryTests(unittest.TestCase):
         self.assertIn("Validate deployed config after recovery", content)
         self.assertIn("Restart service only when config or active health requires it", content)
         self.assertIn("ansible.builtin.systemd_service", content)
+        self.assertIn("when: service_recovery_config_restore_requested | bool", content)
+        self.assertIn("not service_recovery_config_restore_requested | bool", content)
+
+    @patch(
+        "automation.recovery.recovery_runner.collect_verification",
+        return_value=verification_evidence(),
+    )
+    @patch(
+        "automation.recovery.recovery_runner.run_service_recovery_playbook",
+        return_value={
+            **service_recovery_output(),
+            "recovery_failed": True,
+            "recovery_error": "config validation failed; rollback completed",
+        },
+    )
+    def test_rollback_is_structured_as_escalation_even_when_old_config_is_healthy(
+        self, _mocked_service, _mocked_verification
+    ):
+        result = run_recovery(
+            "INC-SVC-001",
+            "dca-target02",
+            service_diagnosis(),
+            service_vars(),
+            execute=True,
+        )
+        self.assertEqual(result["result"], "FAILED")
+        self.assertEqual(result["verification_status"], "ESCALATION_REQUIRED")
+        self.assertIn("rollback", result["detail"])
 
     @patch(
         "automation.recovery.recovery_runner.run_service_recovery_playbook",
@@ -229,6 +313,101 @@ class ServiceRecoveryTests(unittest.TestCase):
                 )
                 self.assertEqual(result["verification_status"], "ESCALATION_REQUIRED")
                 self.assertEqual(result["result"], "FAILED")
+
+    @patch(
+        "automation.recovery.recovery_runner.run_service_recovery_playbook",
+        return_value=service_recovery_output(),
+    )
+    def test_nginx_target_excludes_ssh_skip_and_requires_nginx_pass(
+        self, _mocked_service
+    ):
+        network = verification_evidence()[:4]
+        ssh = [
+            {
+                "layer": "service",
+                "source": "ssh",
+                "check_name": "process",
+                "result": "PASS",
+                "detail": "sshd running",
+            },
+            {
+                "layer": "service",
+                "source": "ssh",
+                "check_name": "listening_port",
+                "result": "PASS",
+                "detail": "TCP 22",
+            },
+            {
+                "layer": "service",
+                "source": "ssh",
+                "check_name": "http_health",
+                "result": "SKIP",
+                "detail": "Not configured",
+            },
+        ]
+        nginx = verification_evidence(service_target="nginx")[4:]
+        with patch(
+            "automation.recovery.recovery_runner.collect_verification",
+            return_value=[*network, *ssh, *nginx],
+        ):
+            result = run_recovery(
+                "INC-SVC-001",
+                "dca-target02",
+                service_diagnosis(),
+                {
+                    "profile": "dca_target02_nginx",
+                    "config_content": None,
+                    "http_enabled": True,
+                },
+                execute=True,
+            )
+        self.assertEqual(result["verification_status"], "VERIFIED")
+        self.assertEqual(result["result"], "SUCCESS")
+        self.assertIn(
+            {
+                "check_name": "http_health",
+                "target": "ssh",
+                "reason": "NON_TARGET_SERVICE",
+            },
+            result["verification"]["excluded_checks"],
+        )
+
+        for status in ("FAIL", "UNKNOWN", "SKIP"):
+            failed_nginx = [dict(item) for item in nginx]
+            failed_nginx[-1]["result"] = status
+            with self.subTest(status=status), patch(
+                "automation.recovery.recovery_runner.collect_verification",
+                return_value=[*network, *ssh, *failed_nginx],
+            ):
+                failed = run_recovery(
+                    "INC-SVC-001",
+                    "dca-target02",
+                    service_diagnosis(),
+                    {
+                        "profile": "dca_target02_nginx",
+                        "config_content": None,
+                        "http_enabled": True,
+                    },
+                    execute=True,
+                )
+                self.assertEqual(failed["verification_status"], "ESCALATION_REQUIRED")
+
+        with patch(
+            "automation.recovery.recovery_runner.collect_verification",
+            return_value=[*network, *ssh, *nginx[:-1]],
+        ):
+            missing = run_recovery(
+                "INC-SVC-001",
+                "dca-target02",
+                service_diagnosis(),
+                {
+                    "profile": "dca_target02_nginx",
+                    "config_content": None,
+                    "http_enabled": True,
+                },
+                execute=True,
+            )
+        self.assertEqual(missing["verification_status"], "ESCALATION_REQUIRED")
 
     @patch("automation.recovery.recovery_runner.run_recovery")
     def test_cli_returns_two_for_escalation(self, mocked_runner):

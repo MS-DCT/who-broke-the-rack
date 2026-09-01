@@ -294,7 +294,11 @@ def flatten_evidence(data: dict[str, Any]) -> list[dict[str, Any]]:
                     ),
                     "host": host,
                     "layer": str(layer).lower() if layer is not None else None,
-                    "source": check.get("source") or category.get("source"),
+                    "source": (
+                        check.get("source")
+                        or category.get("source")
+                        or (check.get("target") if str(layer).lower() == "service" else None)
+                    ),
                     "check_name": snake_case(check.get("name")),
                     "result": normalize_result(raw_result),
                     "severity": check.get("severity"),

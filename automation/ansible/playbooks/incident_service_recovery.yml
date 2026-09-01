@@ -11,6 +11,13 @@
           - incident_id | default('') | string | trim | length > 0
           - recovery_output_dir | default('') | string | trim | length > 0
           - service_recovery_config is mapping
+          - service_recovery_config.config_restore_requested is boolean
+          - >-
+            (service_recovery_config.config_restore_requested | bool
+             and service_recovery_config.config_content is string)
+            or
+            (not service_recovery_config.config_restore_requested | bool
+             and service_recovery_config.config_content is none)
         fail_msg: >-
           incident_id, recovery_output_dir, and service_recovery_config are required.
       run_once: true
@@ -19,16 +26,20 @@
     - role: ../roles/service_recovery
       vars:
         service_recovery_execute: true
+        service_recovery_profile: "{{ service_recovery_config.profile }}"
         service_recovery_service_name: "{{ service_recovery_config.service_name }}"
         service_recovery_package_name: "{{ service_recovery_config.package_name }}"
         service_recovery_config_path: "{{ service_recovery_config.config_path }}"
         service_recovery_config_content: "{{ service_recovery_config.config_content }}"
+        service_recovery_config_restore_requested: "{{ service_recovery_config.config_restore_requested | bool }}"
         service_recovery_config_mode: "{{ service_recovery_config.config_mode }}"
-        service_recovery_validation_binary: "{{ service_recovery_config.validation_binary }}"
+        service_recovery_validation_argv: "{{ service_recovery_config.validation_argv }}"
         service_recovery_process_pattern: "{{ service_recovery_config.process_pattern }}"
         service_recovery_port: "{{ service_recovery_config.port }}"
         service_recovery_http_enabled: "{{ service_recovery_config.http_enabled }}"
         service_recovery_http_url: "{{ service_recovery_config.http_url }}"
+        service_recovery_external_http_url: "{{ service_recovery_config.external_http_url | default(service_recovery_config.http_url) }}"
+        service_recovery_expected_body: "{{ service_recovery_config.expected_body }}"
 
   post_tasks:
     - name: Ensure controller service recovery output directory exists

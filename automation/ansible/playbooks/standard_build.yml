@@ -1,0 +1,15 @@
+---
+- name: Validate confirmed Server 4 standard build
+  hosts: all
+  become: false
+  gather_facts: true
+  pre_tasks:
+    - name: Create controller output directory
+      ansible.builtin.file:
+        path: "{{ standard_build_output_dir }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      run_once: true
+  roles:
+    - role: ../roles/standard_build

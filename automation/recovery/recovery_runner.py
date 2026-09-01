@@ -43,19 +43,36 @@ RULE_ACTIONS = {
     NETWORK_RULE: (NETWORK_ACTION, {NETWORK_ACTION, NETWORK_RECOMMENDED_ACTION}),
     SERVICE_RULE: (SERVICE_ACTION, {SERVICE_ACTION, SERVICE_RECOMMENDED_ACTION}),
 }
-# A's real service values are intentionally not guessed. This profile exists
-# only for mock tests and must be replaced or extended after scenario hand-off.
 SERVICE_RECOVERY_PROFILES = {
     "day5_mock_http": {
         "service_name": "wbr-day5-mock.service",
         "package_name": "wbr-day5-mock",
         "config_path": "/etc/who-broke-the-rack/day5-mock.conf",
         "config_mode": "0644",
-        "validation_binary": "/usr/bin/wbr-day5-mock",
+        "validation_argv": [
+            "/usr/bin/wbr-day5-mock",
+            "--check-config",
+            "/etc/who-broke-the-rack/day5-mock.conf",
+        ],
         "process_pattern": "wbr-day5-mock",
         "port": 18080,
         "http_url": "http://127.0.0.1:18080/health",
-    }
+        "expected_body": None,
+    },
+    "dca_target02_nginx": {
+        "allowed_host": "dca-target02",
+        "service_name": "nginx.service",
+        "package_name": "nginx",
+        "config_path": "/etc/nginx/default.d/health.conf",
+        "config_mode": "0644",
+        "validation_argv": ["/usr/sbin/nginx", "-t"],
+        "process_pattern": "nginx",
+        "port": 80,
+        "http_url": "http://127.0.0.1/health",
+        "external_http_url": "http://192.168.100.207/health",
+        "expected_body": "OK",
+        "verification_target": "nginx",
+    },
 }
 SERVICE_RECOVERY_KEYS = {"profile", "config_content", "http_enabled"}
 ALLOWED_RECOVERY_KEYS = {
@@ -299,6 +316,7 @@ def validate_service_recovery_vars(recovery_vars: Any) -> dict[str, Any]:
         "profile": profile_name,
         **SERVICE_RECOVERY_PROFILES[profile_name],
         "config_content": config_content,
+        "config_restore_requested": config_content is not None,
         "http_enabled": http_enabled,
         "verification": {
             "required_checks": sorted(
@@ -410,17 +428,30 @@ def evaluate_verification(
     evidence: list[dict[str, Any]],
     required_checks: list[str],
     optional_checks: list[str] | None = None,
+    service_target: str | None = None,
 ) -> dict[str, Any]:
     optional = sorted(
         OPTIONAL_VERIFICATION_CHECKS if optional_checks is None else optional_checks
     )
     check_names = [*required_checks, *optional]
     observed: dict[str, list[dict[str, str]]] = {name: [] for name in check_names}
+    excluded_results: list[dict[str, str]] = []
     for item in evidence:
         if not isinstance(item, dict):
             continue
         name = item.get("check_name")
         if name in observed and item.get("layer") == CHECK_LAYERS[name]:
+            item_target = item.get("source") or item.get("target")
+            if item.get("layer") == "service" and service_target is not None:
+                if item_target != service_target:
+                    excluded_results.append(
+                        {
+                            "check_name": str(name),
+                            "target": str(item_target or "UNKNOWN"),
+                            "reason": "NON_TARGET_SERVICE",
+                        }
+                    )
+                    continue
             observed[name].append(
                 {
                     "result": str(item.get("result") or "UNKNOWN").upper(),
@@ -436,7 +467,6 @@ def evaluate_verification(
         for name in required_checks
     ]
     optional_results: list[dict[str, Any]] = []
-    excluded_results: list[dict[str, str]] = []
     for name in optional:
         values = observed[name]
         endpoint_not_configured = bool(values) and all(
@@ -480,7 +510,8 @@ def service_plan_after(recovery_vars: dict[str, Any]) -> dict[str, Any]:
         "service_name": recovery_vars["service_name"],
         "package_name": recovery_vars["package_name"],
         "config_path": recovery_vars["config_path"],
-        "config_restore_requested": recovery_vars["config_content"] is not None,
+        "validation_argv": recovery_vars["validation_argv"],
+        "config_restore_requested": recovery_vars["config_restore_requested"],
         "http_enabled": recovery_vars["http_enabled"],
     }
 
@@ -502,6 +533,12 @@ def run_recovery(
     rule_id = str(diagnosis_data["rule_id"])
     action = RULE_ACTIONS[rule_id][0]
     normalized = validate_recovery_vars(recovery_vars, rule_id)
+    if rule_id == SERVICE_RULE:
+        allowed_host = normalized.get("allowed_host")
+        if allowed_host is not None and host != allowed_host:
+            raise RecoveryRunnerError(
+                f"Service recovery profile {normalized['profile']!r} is restricted to host {allowed_host!r}"
+            )
     optional_checks = normalized["verification"]["optional_checks"]
 
     started_at = utc_now()
@@ -554,7 +591,12 @@ def run_recovery(
         verification_evidence,
         normalized["verification"]["required_checks"],
         optional_checks,
+        normalized.get("verification_target") if rule_id == SERVICE_RULE else None,
     )
+    recovery_failed = bool(recovery.get("recovery_failed", False))
+    if recovery_failed:
+        verification["status"] = "ESCALATION_REQUIRED"
+        verification["recovery_error"] = recovery.get("recovery_error")
     verification_status = verification["status"]
     result_status = "SUCCESS" if verification_status == "VERIFIED" else "FAILED"
     ended_at = utc_now()
@@ -573,7 +615,7 @@ def run_recovery(
         "verification": verification,
         "before": recovery.get("before") or {},
         "after": recovery.get("after") or {},
-        "detail": None,
+        "detail": recovery.get("recovery_error") if recovery_failed else None,
     }
     json.dumps(result)
     return result

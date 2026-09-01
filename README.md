@@ -48,7 +48,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 5 — 2026-08-27** | Nginx Service Fault 환경 구성 및 Data Plane·iLO 정상 상태 분리, OPNsense 장애 관측·수동 복구 검증 | 작성 예정 | 작성예정 |
+| **Day 5 — 2026-08-27** | Nginx Service Fault 환경 구성 및 Data Plane·iLO 정상 상태 분리, OPNsense 장애 관측·수동 복구 검증 | Nginx allowlist Recovery와 service-target Evidence 검증 구현; 실제 stop/recovery E2E `SUCCESS/VERIFIED` 완료 | 작성예정 |
 
 ➡️ [Day 5 상세 작업 기록](docs/day5.md)
 
@@ -58,7 +58,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 6 — 2026-08-30** | 작성 예정 | 작성 예정 | 작성예정 |
+| **Day 6 — 2026-08-30** | 작성 예정 | L1~L5 Escalation 및 `.208` read-only Standard Build 구현; PLAN_ONLY와 실제 Health Validation `VERIFIED` 완료 | 작성예정 |
 
 ➡️ [Day 6 상세 작업 기록](docs/day6.md)
 
@@ -68,7 +68,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 7 — 2026-08-31** | 작성 예정 | 작성 예정 | 작성예정 |
+| **Day 7 — 2026-08-31** | 작성 예정 | Network/Service/Physical 공통 Workflow와 adapter·timeline·resume 계약 구현 및 mock 검증 | 작성예정 |
 
 ➡️ [Day 7 상세 작업 기록](docs/day7.md)
 
@@ -78,6 +78,6 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 8 — 2026-09-01** | 작성 예정 | 작성 예정 | 작성예정 |
+| **Day 8 — 2026-09-01** | 작성 예정 | B 통합·안전성 회귀 101건 완료; L3~L5 실제 실행은 Infrastructure adapter 미연결로 MANUAL_REQUIRED | 작성예정 |
 
 ➡️ [Day 8 상세 작업 기록](docs/day8.md)

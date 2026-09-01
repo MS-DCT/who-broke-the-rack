@@ -1,0 +1,80 @@
+---
+- name: Validate fixed Server 4 profile
+  ansible.builtin.assert:
+    that:
+      - inventory_hostname == 'dca-spare01'
+      - standard_build_profile.interface == 'pxe0'
+      - standard_build_profile.driver == 'mlx4_en'
+      - standard_build_profile.ip_address == '192.168.100.208/24'
+      - standard_build_profile.gateway == '192.168.100.90'
+      - standard_build_profile.pxe_server == '192.168.100.60'
+    fail_msg: Standard Build permits only the confirmed Server 4 validation profile.
+
+- name: Read service state
+  ansible.builtin.service_facts:
+
+- name: Read loaded kernel modules
+  ansible.builtin.command:
+    argv: [lsmod]
+  register: standard_build_modules
+  changed_when: false
+
+- name: Read interface properties
+  ansible.builtin.command:
+    argv: [ethtool, "{{ standard_build_profile.interface }}"]
+  register: standard_build_ethtool
+  changed_when: false
+  failed_when: false
+
+- name: Read interface driver
+  ansible.builtin.command:
+    argv: [ethtool, -i, "{{ standard_build_profile.interface }}"]
+  register: standard_build_driver
+  changed_when: false
+  failed_when: false
+
+- name: Read interface addresses
+  ansible.builtin.command:
+    argv: [ip, -o, -4, addr, show, dev, "{{ standard_build_profile.interface }}"]
+  register: standard_build_ip
+  changed_when: false
+  failed_when: false
+
+- name: Read default route without changing NetworkManager
+  ansible.builtin.command:
+    argv: [ip, -4, route, show, default]
+  register: standard_build_gateway
+  changed_when: false
+  failed_when: false
+
+- name: Validate PXE server reachability
+  ansible.builtin.command:
+    argv: [ping, -c, '1', -W, '2', "{{ standard_build_profile.pxe_server }}"]
+  register: standard_build_pxe
+  changed_when: false
+  failed_when: false
+
+- name: Build Standard Build validation contract
+  ansible.builtin.set_fact:
+    standard_build_validation:
+      ssh_access: PASS
+      os_release: "{{ 'PASS' if ansible_distribution == 'Rocky' and ansible_distribution_version == '9.8' else 'FAIL' }}"
+      interface: "{{ 'PASS' if standard_build_ip.rc == 0 else 'FAIL' }}"
+      driver: "{{ 'PASS' if 'driver: ' ~ standard_build_profile.driver in standard_build_driver.stdout | default('') else 'FAIL' }}"
+      modules: "{{ 'PASS' if standard_build_profile.modules | reject('in', standard_build_modules.stdout | default('')) | list | length == 0 else 'FAIL' }}"
+      link: "{{ 'PASS' if 'Link detected: yes' in standard_build_ethtool.stdout | default('') else 'FAIL' }}"
+      speed: "{{ 'PASS' if 'Speed: ' ~ standard_build_profile.speed_mbps ~ 'Mb/s' in standard_build_ethtool.stdout | default('') else 'FAIL' }}"
+      duplex: "{{ 'PASS' if 'Duplex: ' ~ standard_build_profile.duplex in standard_build_ethtool.stdout | default('') else 'FAIL' }}"
+      ip_address: "{{ 'PASS' if standard_build_profile.ip_address in standard_build_ip.stdout | default('') else 'FAIL' }}"
+      gateway: "{{ 'PASS' if 'via ' ~ standard_build_profile.gateway in standard_build_gateway.stdout | default('') else 'FAIL' }}"
+      pxe_reachability: "{{ 'PASS' if standard_build_pxe.rc == 0 else 'FAIL' }}"
+      required_services: "{{ 'PASS' if ansible_facts.services.get('sshd.service', {}).state | default('') == 'running' else 'FAIL' }}"
+  changed_when: false
+
+- name: Write Standard Build result on controller
+  ansible.builtin.copy:
+    content: "{{ standard_build_validation | to_nice_json }}\n"
+    dest: "{{ standard_build_output_dir }}/{{ inventory_hostname }}.json"
+    mode: '0600'
+  delegate_to: localhost
+  become: false

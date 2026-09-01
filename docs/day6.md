@@ -9,7 +9,7 @@ Day 6 팀별 작업 기록
 | Role | 담당 | Day 6 작업 |
 |---|---|---|
 | **A** | Hardware / Infrastructure | Server #4 Spare/PXE 인프라 검증 및 One-Time Network Boot 기반 Boot Failure·복구, DHCP/PXE Handoff 구간 검증 |
-| **B** | Automation / Troubleshooting | 작성 예정 |
+| **B** | Automation / Troubleshooting | Escalation Engine 및 read-only Standard Build 검증 |
 | **C** | Platform / Visualization | 작성 예정 |
 
 ---
@@ -621,7 +621,12 @@ Provisioning PASS 기준의 B 담당자 전달 및 선행 PXE 성공 당시 DHCP
 
 ## 👤 B — Day 6
 
-> 작성 예정
+- L1 Service Repair부터 L5 PXE Rebuild까지 timeout, 제한 retry, idempotency key와 다음 action 계약을 구현했다.
+- Infrastructure adapter가 없는 L3~L5는 실제 장비를 변경하지 않고 `MANUAL_REQUIRED`와 action payload를 반환한다.
+- `.208`의 `pxe0`, `mlx4_en`, module, link/speed/duplex, IP/gateway/PXE reachability를 읽기 전용으로 검사하는 Standard Build runner를 추가했다.
+- iLO에서 확인한 ED25519 fingerprint와 새 수집 key의 일치를 검증한 뒤 `.208`의 해당 known_hosts 항목만 안전하게 교체했다.
+- BatchMode SSH, Ansible ping, become root를 확인하고 PLAN_ONLY `PLANNED`와 승인 profile의 실제 read-only Health Validation `VERIFIED`를 완료했다.
+- Rocky OS, `pxe0`, `mlx4_en` modules, link, 40000Mb/s, Full Duplex, `192.168.100.208/24`, gateway `.90`, PXE server `.60` reachability가 모두 PASS였다.
 
 ---
 
