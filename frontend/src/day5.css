@@ -1,0 +1,185 @@
+/* C Day 5 - Suspect, Recovery, Timeline Result, Incident History */
+
+.suspect-culprit {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.35);
+}
+
+.culprit-status {
+  background: #991b1b;
+  color: #fee2e2;
+}
+
+.suspect-cleared {
+  opacity: 0.55;
+}
+
+.suspect-cleared .suspect-name {
+  text-decoration: line-through;
+}
+
+.suspect-cleared .suspect-status {
+  font-weight: 700;
+}
+
+.recovery-card {
+  margin-top: 20px;
+  padding: 22px;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 12px;
+}
+
+.recovery-card h3 {
+  margin: 8px 0;
+}
+
+.recovery-card p {
+  color: #cbd5e1;
+}
+
+.recovery-label {
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.recovery-button,
+.execute-recovery-button {
+  margin-top: 12px;
+  margin-right: 10px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.recovery-button {
+  background: #2563eb;
+  color: #fff;
+}
+
+.execute-recovery-button {
+  background: #059669;
+  color: #fff;
+}
+
+.recovery-button:disabled,
+.execute-recovery-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.recovery-result {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 10px;
+}
+
+.recovery-result small {
+  color: #94a3b8;
+}
+
+.recovery-success {
+  border-color: #047857;
+}
+
+.case-closed {
+  margin-left: auto;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #065f46;
+  color: #d1fae5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.incident-history-section {
+  margin-top: 24px;
+}
+
+.incident-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.incident-history-header h3 {
+  margin: 0;
+}
+
+.incident-history-header p {
+  margin: 4px 0 0;
+  opacity: 0.65;
+}
+
+.incident-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px 160px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+
+.history-id,
+.history-server,
+.history-status {
+  min-width: 0;
+}
+
+.history-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+}
+
+.history-server {
+  font-weight: 600;
+}
+
+.history-status {
+  justify-self: end;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  font-weight: 700;
+  text-align: right;
+}
+
+.history-status-closed {
+  font-weight: 800;
+}
+
+.history-empty {
+  padding: 16px;
+  opacity: 0.6;
+}
+
+@media (max-width: 700px) {
+  .history-item {
+    grid-template-columns: 1fr;
+  }
+
+  .history-status {
+    justify-self: start;
+  }
+}
