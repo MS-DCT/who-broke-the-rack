@@ -58,7 +58,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 6 — 2026-08-30** | Server #4 Spare/PXE Infrastructure 및 DHCP·ProxyDHCP·TFTP Handoff 검증; One-Time Network Boot 기반 Boot Failure·정상 복구 검증 | L1~L5 Escalation 및 `.208` read-only Standard Build 구현; PLAN_ONLY와 실제 Health Validation `VERIFIED` 완료 | 작성예정 |
+| **Day 6 — 2026-08-30** | Server #4 Spare/PXE Infrastructure 및 DHCP·ProxyDHCP·TFTP Handoff 검증; One-Time Network Boot 기반 Boot Failure·정상 복구 검증 | L1~L5 Escalation 및 `.208` read-only Standard Build 구현; PLAN_ONLY와 실제 Health Validation `VERIFIED` 완료 | Escalation 상태 DB/API와 2초 Polling 기반 Physical Recovery Progress UI 구현; `ESCALATION_REQUIRED → SPARE_ACTIVATING → PXE → CONFIGURING → READY` 실시간 전환 검증 |
 
 ➡️ [Day 6 상세 작업 기록](docs/day6.md)
 
