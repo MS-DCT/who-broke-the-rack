@@ -412,3 +412,49 @@ def update_escalation_status(
         "escalation_level": incident.escalation_level,
         "escalation_status": incident.escalation_status,
     }
+
+
+# =========================
+# Day 7 - Close Incident
+# =========================
+
+@app.post("/incidents/{incident_id}/close")
+def close_incident(
+    incident_id: str,
+    db: Session = Depends(get_db)
+):
+    from datetime import datetime
+
+    incident = (
+        db.query(models.Incident)
+        .filter(models.Incident.incident_id == incident_id)
+        .first()
+    )
+
+    if incident is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Incident를 찾을 수 없습니다: {incident_id}"
+        )
+
+    incident.status = "CLOSED"
+    incident.ended_at = datetime.utcnow()
+
+    db.add(
+        models.Action(
+            incident_id=incident.incident_id,
+            action_type="CASE_CLOSED",
+            status="CLOSED",
+            details="Physical recovery verification completed"
+        )
+    )
+
+    db.commit()
+    db.refresh(incident)
+
+    return {
+        "incident_id": incident.incident_id,
+        "status": incident.status,
+        "started_at": incident.started_at,
+        "ended_at": incident.ended_at,
+    }
