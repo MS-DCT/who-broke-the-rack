@@ -1,0 +1,252 @@
+{
+  "incident_id": "DAY7-NODE-01",
+  "server_id": "server-207",
+  "host": "dca-target02",
+  "timestamp": "2026-09-01T13:15:34.215312+00:00",
+  "category": "hardware",
+  "source": "redfish",
+  "evidence": {
+    "ilo_reachability": {
+      "result": "PASS",
+      "value": "REACHABLE",
+      "detail": "iLO 192.168.0.207 Redfish API access confirmed",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "power_state": {
+      "result": "WARN",
+      "value": "Off",
+      "detail": "PowerState=Off",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "system_health": {
+      "result": "FAIL",
+      "value": "OK",
+      "detail": "Health=OK, State=Disabled",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "post_state": {
+      "result": "SKIP",
+      "value": "PowerOff",
+      "detail": "PostState=PowerOff",
+      "source": "/redfish/v1/Systems/1/Oem/Hp/PostState"
+    },
+    "boot_os_state": {
+      "result": "UNKNOWN",
+      "value": "NOT_VERIFIED",
+      "detail": "POST state collected, but Redfish HostCorrelation does not provide a usable OS IP address. OS reachability requires a separate network/OS probe.",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "memory_health": {
+      "result": "UNKNOWN",
+      "value": "UNKNOWN",
+      "detail": "Health=None, TotalMemory=192 GiB",
+      "source": "/redfish/v1/Systems/1/"
+    },
+    "storage_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "Health=OK, State=None",
+      "source": "/redfish/v1/Systems/1/SmartStorage/"
+    },
+    "controller_0_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "Model=Smart Array P440ar Controller, Health=OK, State=Enabled",
+      "source": "/redfish/v1/Systems/1/SmartStorage/ArrayControllers/0/"
+    },
+    "logical_drive_0_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "RAID=0, CapacityMiB=476908, Health=OK, State=Enabled",
+      "source": "/redfish/v1/Systems/1/SmartStorage/ArrayControllers/0/LogicalDrives/1/"
+    },
+    "physical_drive_0_health": {
+      "result": "PASS",
+      "value": "OK",
+      "detail": "Model=WD5000A, MediaType=HDD, Interface=SATA, CapacityGB=500, Location=1I:1:1, Health=OK, State=Enabled",
+      "source": "/redfish/v1/Systems/1/SmartStorage/ArrayControllers/0/DiskDrives/0/"
+    }
+  },
+  "iml_events": [
+    {
+      "message": "IML Cleared (System Administrator)",
+      "severity": "OK",
+      "created": "2016-07-19T23:46:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2016-07-20T06:32:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: Action: Use the HP SSA to configure the attached drives.",
+      "severity": "OK",
+      "created": "",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2016-07-19T15:57:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "POST Information: 336-HPE RESTful API Error - One or more configuration settings could not be applied. Action: Refer to SettingsResult property in the RESTful API for details.",
+      "severity": "OK",
+      "created": "2016-07-19T15:57:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2016-07-19T16:02:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "POST Error: 288-IMPORTANT: A new storage device has been detected and has been added to the end of the Boot Controller Order. Action: No action required.",
+      "severity": "Warning",
+      "created": "2016-07-19T16:02:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "POST Error: 289-IMPORTANT: A new network or storage device has been detected. This device will not be shown in the Legacy BIOS Boot Order options in RBSU until the system has booted once. Action: No action required.",
+      "severity": "Warning",
+      "created": "",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2016-07-21T18:06:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2016-07-27T06:19:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2016-08-11T05:28:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "System Power Supply: Input Power Loss or Unplugged Power Cord, Verify Power Supply Input (Power Supply 1)",
+      "severity": "OK",
+      "created": "2016-08-11T13:31:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "System Power Supplies Not Redundant",
+      "severity": "OK",
+      "created": "2016-08-11T13:31:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "System Power Supply: Input Power Loss or Unplugged Power Cord, Verify Power Supply Input (Power Supply 2)",
+      "severity": "OK",
+      "created": "2016-08-11T13:38:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "System Power Supplies Not Redundant",
+      "severity": "OK",
+      "created": "2016-08-11T13:38:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Firmware flashed (iLO 4 2.50)",
+      "severity": "OK",
+      "created": "2017-03-11T15:13:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2018-02-07T22:23:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2018-05-28T03:02:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Firmware flashed (iLO 4 2.55)",
+      "severity": "OK",
+      "created": "2018-07-11T09:18:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2018-08-24T16:16:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Firmware flashed (iLO 4 2.60)",
+      "severity": "OK",
+      "created": "2018-08-28T09:47:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Firmware flashed (iLO 4 2.61)",
+      "severity": "OK",
+      "created": "2018-11-27T09:20:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Firmware flashed (iLO 4 2.70)",
+      "severity": "OK",
+      "created": "2019-07-02T09:44:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2021-04-28T21:34:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2021-04-29T05:36:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2021-04-29T13:35:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2021-04-29T21:34:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2021-04-30T05:36:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2021-04-30T13:36:00Z",
+      "subsystem": "unknown"
+    },
+    {
+      "message": "Option ROM POST Information: 1785-Slot 0 Drive Array Not Configured.",
+      "severity": "OK",
+      "created": "2021-05-01T14:01:00Z",
+      "subsystem": "unknown"
+    }
+  ]
+}

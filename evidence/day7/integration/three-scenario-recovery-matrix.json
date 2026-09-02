@@ -1,0 +1,92 @@
+{
+  "project": "WHO BROKE THE RACK",
+  "validation": "three_scenario_recovery_integration",
+  "scenarios": [
+    {
+      "scenario": "A",
+      "fault_type": "network",
+      "target": {
+        "server_id": "server-207",
+        "host": "dca-target02"
+      },
+      "fault": "blackhole route to 192.168.100.60/32",
+      "observed": {
+        "nic_link": "PASS",
+        "ip_address": "PASS",
+        "gateway": "PASS",
+        "routes": "FAIL"
+      },
+      "diagnosis": {
+        "status": "MATCHED",
+        "rule_id": "NET-ROUTE-01",
+        "severity": "HIGH"
+      },
+      "recovery_layer": "software_network_recovery",
+      "verification": "PASS",
+      "evidence_basis": "stored diagnosis JSON and Day4 execution evidence"
+    },
+    {
+      "scenario": "B",
+      "fault_type": "service",
+      "target": {
+        "server_id": "server-207",
+        "host": "dca-target02"
+      },
+      "fault": "nginx service stopped",
+      "observed": {
+        "data_plane": "PASS",
+        "ilo_web": "PASS",
+        "ssh": "PASS",
+        "http_health": "FAIL"
+      },
+      "diagnosis": {
+        "rule_id": "SVC-HTTP-01"
+      },
+      "recovery_layer": "software_service_recovery",
+      "verification": "HTTP 200 restored",
+      "evidence_basis": "Day5 execution results and screenshots"
+    },
+    {
+      "scenario": "C",
+      "fault_type": "node_physical",
+      "target": {
+        "server_id": "server-207",
+        "host": "dca-target02"
+      },
+      "fault": "iLO Virtual Power Button Hold based forced Power OFF",
+      "observed": {
+        "os_reachability": "FAIL",
+        "data_plane_reachability": "FAIL",
+        "ilo_reachability": "PASS",
+        "power_state": "OFF",
+        "storage_health": "PASS"
+      },
+      "diagnosis": {
+        "status": "ESCALATED",
+        "note": "No dedicated Power-Off Physical Recovery rule in the current Diagnosis Engine"
+      },
+      "recovery_layer": "physical_recovery",
+      "spare": {
+        "server_id": "server-208",
+        "host": "dca-spare01"
+      },
+      "verification": {
+        "physical_recovery_ready": "PASS/READY",
+        "pxe_provisioning_ready": "UNKNOWN/PENDING"
+      },
+      "backend": {
+        "incident_id": "INC-20260902-095643-FA80",
+        "incident_status": "ESCALATED",
+        "action_type": "physical_recovery",
+        "action_status": "READY",
+        "c_facing_api": "VERIFIED"
+      },
+      "evidence_basis": "Day7 Hardware Evidence, Physical Recovery JSON, Backend Action and Timeline API"
+    }
+  ],
+  "recovery_policy": {
+    "network_fault": "Software Network Recovery",
+    "service_fault": "Software Service Recovery",
+    "node_physical_fault": "Escalation to Physical Recovery"
+  }
+}

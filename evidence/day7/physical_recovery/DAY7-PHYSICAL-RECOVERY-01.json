@@ -1,0 +1,58 @@
+{
+  "incident_id": "DAY7-PHYSICAL-RECOVERY-01",
+  "server_id": "server-208",
+  "host": "dca-spare01",
+  "timestamp": "2026-09-01T14:23:34.767595Z",
+  "category": "physical_recovery",
+  "source": "physical_recovery",
+  "evidence": {
+    "target_node_failure": {
+      "result": "PASS",
+      "value": "NODE_FAILURE_CONFIRMED",
+      "detail": "server-207 PowerState=Off and POST unavailable due to PowerOff",
+      "source": "redfish"
+    },
+    "spare_hardware_ready": {
+      "result": "PASS",
+      "value": "READY",
+      "detail": "iLO, Power, System, POST, Memory, Storage and 3 device-level hardware checks PASS",
+      "source": "redfish"
+    },
+    "spare_reachability": {
+      "result": "PASS",
+      "value": "REACHABLE",
+      "detail": "192.168.100.208 responded to ICMP probe",
+      "source": "icmp_probe"
+    },
+    "spare_network_ready": {
+      "result": "PASS",
+      "value": "UP",
+      "detail": "pxe0 192.168.100.208/24, 40000Mb/s Full Duplex, Link detected=yes",
+      "source": "os_network_probe"
+    },
+    "spare_os_ready": {
+      "result": "PASS",
+      "value": "RUNNING",
+      "detail": "dca-spare01 SSH reachable and systemd state=running",
+      "source": "ssh_systemd_probe"
+    },
+    "pxe_server_reachability": {
+      "result": "PASS",
+      "value": "REACHABLE",
+      "detail": "dca-spare01 can reach PXE server 192.168.100.60",
+      "source": "icmp_probe_from_spare"
+    },
+    "pxe_provisioning_ready": {
+      "result": "UNKNOWN",
+      "value": "PENDING",
+      "detail": "PXE server reachability is checked separately; full PXE boot and unattended reinstall E2E verification is still pending",
+      "source": "day6_pxe_validation"
+    },
+    "physical_recovery_ready": {
+      "result": "PASS",
+      "value": "READY",
+      "detail": "Target node failure confirmed and Spare #4 Hardware/Network/OS/PXE-server reachability verified",
+      "source": "physical_recovery"
+    }
+  }
+}
