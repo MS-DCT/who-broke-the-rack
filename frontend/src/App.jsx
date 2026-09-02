@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import "./day5.css";
+import "./day7.css";
 import IncidentPanel from "./IncidentPanel";
 
 function App() {
