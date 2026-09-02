@@ -1,0 +1,7 @@
+{
+  "incident_id": "INC-SVC-001",
+  "host": "dca-target02",
+  "rule_id": "SVC-HTTP-01",
+  "recommended_action": "service_recovery",
+  "diagnosis_status": "MATCHED"
+}

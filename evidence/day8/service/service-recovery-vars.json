@@ -1,0 +1,5 @@
+{
+  "profile": "day5_mock_http",
+  "config_content": "listen=18080\nhealth_path=/health\n",
+  "http_enabled": true
+}

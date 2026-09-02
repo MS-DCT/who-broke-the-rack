@@ -1,0 +1,20 @@
+{
+  "interface": "eno49",
+  "gateway": "192.168.100.200",
+  "routes": [],
+  "remove_blackhole_routes": [
+    "192.168.100.60/32"
+  ],
+  "verification": {
+    "required_checks": [
+      "nic_link",
+      "ip_address",
+      "gateway",
+      "routes",
+      "process",
+      "listening_port"
+    ]
+  },
+  "allow_default_route_change": false,
+  "allow_ssh_path_change": false
+}
