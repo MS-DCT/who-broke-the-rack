@@ -38,7 +38,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 4 — 2026-08-26** | Blackhole Route 기반 Network Fault 재현 및 Cisco SVI·Data Plane·OPNsense 장애 범위 검증, 수동 복구 검증 | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증 | FastAPI Recovery API 및 React Recovery UI 구현 + NET-ROUTE-01 기반 Recovery Plan·Execute·Verification·CASE CLOSED 연동
+| **Day 4 — 2026-08-26** | Blackhole Route 기반 Network Fault 재현 및 Cisco SVI·Data Plane·OPNsense 장애 범위 검증, 수동 복구 검증 | NET-ROUTE-01 기반 Network Recovery Role 및 Runner 구현 + 복구 후 Evidence 재수집·상태 검증 | FastAPI Recovery API 및 React Recovery UI 구현 + NET-ROUTE-01 기반 Recovery Plan·Execute·Verification·CASE CLOSED 연동 |
 
 ➡️ [Day 4 상세 작업 기록](docs/day4.md)
 
@@ -68,9 +68,9 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 7 — 2026-08-31** | Target #3 Node Failure 재현 및 Spare #4 Physical Recovery 검증; Backend 연계 및 Network·Service·Physical Recovery 3개 Scenario 통합 | Network/Service/Physical 공통 Workflow와 adapter·timeline·resume 계약 구현 및 mock 검증 | 작성예정 |
+| **Day 7 — 2026-08-31** | Target #3 Node Failure 재현 및 Spare #4 Physical Recovery 검증; Backend 연계 및 Network·Service·Physical Recovery 3개 Scenario 통합 | Network/Service/Physical 공통 Workflow와 adapter·timeline·resume 계약 구현 및 mock 검증 | Incident State Machine, 2초 Timeline Polling, Rack Overview `FAILED/RECOVERING/READY`, Physical Recovery `VERIFYING`, `CASE CLOSED` 및 Recovery Time UI 구현 |
 
-➡️ [Day 7 상세 작업 기록](docs/day7.md)
+➡️ [Day 7 상세 작업 기록](docs/day7.md) · [C 상세 기록](docs/day7-c.md)
 
 ---
 
