@@ -58,7 +58,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 6 — 2026-08-30** | 작성 예정 | L1~L5 Escalation 및 `.208` read-only Standard Build 구현; PLAN_ONLY와 실제 Health Validation `VERIFIED` 완료 | 작성예정 |
+| **Day 6 — 2026-08-30** | Server #4 Spare/PXE Infrastructure 및 DHCP·ProxyDHCP·TFTP Handoff 검증; One-Time Network Boot 기반 Boot Failure·정상 복구 검증 | L1~L5 Escalation 및 `.208` read-only Standard Build 구현; PLAN_ONLY와 실제 Health Validation `VERIFIED` 완료 | 작성예정 |
 
 ➡️ [Day 6 상세 작업 기록](docs/day6.md)
 
@@ -68,7 +68,7 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 7 — 2026-08-31** | 작성 예정 | Network/Service/Physical 공통 Workflow와 adapter·timeline·resume 계약 구현 및 mock 검증 | 작성예정 |
+| **Day 7 — 2026-08-31** | Target #3 Node Failure 재현 및 Spare #4 Physical Recovery 검증; Backend 연계 및 Network·Service·Physical Recovery 3개 Scenario 통합 | Network/Service/Physical 공통 Workflow와 adapter·timeline·resume 계약 구현 및 mock 검증 | 작성예정 |
 
 ➡️ [Day 7 상세 작업 기록](docs/day7.md)
 
