@@ -310,3 +310,105 @@ def recover_incident(
             status_code=500,
             detail=str(e)
         )
+
+
+# =========================
+# Day 6 - Escalation Status
+# =========================
+
+@app.get("/incidents/{incident_id}/escalation")
+def get_escalation_status(
+    incident_id: str,
+    db: Session = Depends(get_db)
+):
+    incident = (
+        db.query(models.Incident)
+        .filter(
+            models.Incident.incident_id == incident_id
+        )
+        .first()
+    )
+
+    if incident is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Incident를 찾을 수 없습니다: {incident_id}"
+        )
+
+    return {
+        "incident_id": incident.incident_id,
+        "server_id": incident.server_id,
+        "incident_status": incident.status,
+        "escalation_level": incident.escalation_level,
+        "escalation_status": incident.escalation_status,
+    }
+
+
+@app.post("/incidents/{incident_id}/escalation")
+def update_escalation_status(
+    incident_id: str,
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    incident = (
+        db.query(models.Incident)
+        .filter(
+            models.Incident.incident_id == incident_id
+        )
+        .first()
+    )
+
+    if incident is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Incident를 찾을 수 없습니다: {incident_id}"
+        )
+
+    level = payload.get("level")
+    status = payload.get("status")
+
+    allowed_levels = {
+        "L1",
+        "L2",
+        "L3",
+        "L4",
+        "L5",
+    }
+
+    allowed_statuses = {
+        "SOFTWARE_RECOVERY_FAILED",
+        "ESCALATION_REQUIRED",
+        "SPARE_ACTIVATING",
+        "PXE",
+        "CONFIGURING",
+        "READY",
+    }
+
+    if level is not None and level not in allowed_levels:
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원하지 않는 escalation level: {level}"
+        )
+
+    if status not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원하지 않는 escalation status: {status}"
+        )
+
+    incident.escalation_level = level
+    incident.escalation_status = status
+
+    if status == "ESCALATION_REQUIRED":
+        incident.status = "ESCALATED"
+
+    db.commit()
+    db.refresh(incident)
+
+    return {
+        "incident_id": incident.incident_id,
+        "server_id": incident.server_id,
+        "incident_status": incident.status,
+        "escalation_level": incident.escalation_level,
+        "escalation_status": incident.escalation_status,
+    }
