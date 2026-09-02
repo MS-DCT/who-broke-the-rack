@@ -159,9 +159,6 @@ h2 {
   border-radius: 8px;
 }
 
-
-
-
 /* =========================
    Suspect Cards
 ========================= */
@@ -200,7 +197,6 @@ h2 {
   border: 1px solid #334155;
   border-radius: 12px;
   background: #1e293b;
-
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -218,7 +214,6 @@ h2 {
   font-weight: 700;
 }
 
-/* 정상 */
 .suspect-normal {
   border-color: #14532d;
 }
@@ -228,7 +223,6 @@ h2 {
   color: #d1fae5;
 }
 
-/* 의심 */
 .suspect-suspect {
   border-color: #9a3412;
 }
@@ -238,7 +232,6 @@ h2 {
   color: #ffedd5;
 }
 
-/* 조사 전 */
 .suspect-unknown {
   border-color: #475569;
 }
@@ -542,5 +535,99 @@ h2 {
 
   .incident-summary {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Day 6 - Recovery Escalation */
+
+.escalation-card {
+  margin-top: 24px;
+  padding: 22px;
+  border: 1px solid #343b4a;
+  border-radius: 14px;
+  background: #151922;
+}
+
+.escalation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.escalation-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+
+.escalation-header h3 {
+  margin: 5px 0 0;
+}
+
+.escalation-level {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid #596273;
+  font-weight: 800;
+}
+
+.escalation-progress {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.escalation-step {
+  min-width: 0;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.35;
+}
+
+.escalation-dot {
+  width: 14px;
+  height: 14px;
+  margin: 0 auto 9px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+}
+
+.escalation-step-complete {
+  opacity: 0.7;
+}
+
+.escalation-step-active {
+  opacity: 1;
+  font-weight: 900;
+}
+
+.escalation-step-active .escalation-dot {
+  transform: scale(1.25);
+}
+
+.escalation-current {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #343b4a;
+}
+
+.escalation-current span {
+  opacity: 0.65;
+}
+
+.escalation-current strong {
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .escalation-progress {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 18px;
   }
 }
