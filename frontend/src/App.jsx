@@ -8,6 +8,7 @@ function App() {
   const [evidence, setEvidence] = useState([]);
   const [error, setError] = useState("");
   const [liveDiagnosis, setLiveDiagnosis] = useState(null);
+  const [platformState, setPlatformState] = useState(null);
 
   const CURRENT_INCIDENT = "DAY2-207";
 
@@ -114,6 +115,29 @@ function App() {
     return getStatusLabel(suspect.status);
   };
 
+  const getRackVisualState = (server) => {
+    const escalationStatus = platformState?.escalation?.escalation_status;
+    const targetServer = platformState?.incident?.server_id;
+
+    if (server.server_id === targetServer && escalationStatus) {
+      return "FAILED";
+    }
+
+    if (server.server_id === "server-208") {
+      if (escalationStatus === "READY") {
+        return "READY";
+      }
+
+      if (["SPARE_ACTIVATING", "PXE", "CONFIGURING"].includes(escalationStatus)) {
+        return "RECOVERING";
+      }
+
+      return "SPARE";
+    }
+
+    return server.status === "UNKNOWN" ? "NORMAL" : server.status;
+  };
+
   return (
     <div className="dashboard">
       <header>
@@ -123,16 +147,22 @@ function App() {
 
       {error && <div className="error">{error}</div>}
 
-      <IncidentPanel onDiagnosisComplete={setLiveDiagnosis} />
+      <IncidentPanel
+        onDiagnosisComplete={setLiveDiagnosis}
+        onPlatformStateChange={setPlatformState}
+      />
 
       <section>
         <h2>Rack Overview</h2>
         <div className="server-grid">
           {servers.map((server) => (
-            <div className="server-card" key={server.server_id}>
+            <div
+              className={`server-card rack-state-${getRackVisualState(server).toLowerCase()}`}
+              key={server.server_id}
+            >
               <div className="card-header">
                 <h3>{server.hostname}</h3>
-                <span className="status">{server.status}</span>
+                <span className="status">{getRackVisualState(server)}</span>
               </div>
               <p><strong>Server ID</strong><span>{server.server_id}</span></p>
               <p><strong>Role</strong><span>{server.role}</span></p>
@@ -156,18 +186,13 @@ function App() {
         <div className="suspect-grid">
           {suspects.map((suspect) => {
             const isCulprit = culpritName === suspect.name;
-            const isCleared =
-              Boolean(culpritName) &&
-              !isCulprit &&
-              suspect.status === "NORMAL";
+            const isCleared = Boolean(culpritName) && !isCulprit && suspect.status === "NORMAL";
 
             return (
               <div
                 className={`suspect-card suspect-${suspect.status.toLowerCase()} ${
                   isCulprit ? "suspect-culprit" : ""
-                } ${
-                  isCleared ? "suspect-cleared" : ""
-                }`}
+                } ${isCleared ? "suspect-cleared" : ""}`}
                 key={suspect.name}
               >
                 <span className="suspect-name">{suspect.name}</span>
@@ -190,9 +215,7 @@ function App() {
             <h2>Evidence Timeline</h2>
             <p>Real Diagnostic Evidence — {CURRENT_INCIDENT}</p>
           </div>
-          <span className="evidence-count">
-            {day2Evidence.length} Evidence
-          </span>
+          <span className="evidence-count">{day2Evidence.length} Evidence</span>
         </div>
 
         <div className="timeline">
