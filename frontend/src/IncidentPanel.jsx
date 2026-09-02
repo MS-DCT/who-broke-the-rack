@@ -11,7 +11,17 @@ const ESCALATION_STEPS = [
   "READY",
 ];
 
-function IncidentPanel({ onDiagnosisComplete }) {
+const INCIDENT_STATES = [
+  "DETECTED",
+  "INVESTIGATING",
+  "ROOT_CAUSE_FOUND",
+  "RECOVERING",
+  "ESCALATING",
+  "VERIFYING",
+  "CLOSED",
+];
+
+function IncidentPanel({ onDiagnosisComplete, onPlatformStateChange }) {
   const [serverId, setServerId] = useState("server-207");
   const [incident, setIncident] = useState(null);
   const [diagnosis, setDiagnosis] = useState(null);
@@ -36,11 +46,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
 
       const sorted = (data.incidents || [])
         .slice()
-        .sort(
-          (a, b) =>
-            new Date(b.started_at || 0) -
-            new Date(a.started_at || 0)
-        )
+        .sort((a, b) => new Date(b.started_at || 0) - new Date(a.started_at || 0))
         .slice(0, 5);
 
       setIncidentHistory(sorted);
@@ -59,9 +65,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
     if (!incidentId) return;
 
     try {
-      const response = await fetch(
-        `${API_BASE}/incidents/${incidentId}/escalation`
-      );
+      const response = await fetch(`${API_BASE}/incidents/${incidentId}/escalation`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -88,9 +92,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
   }, [incident?.incident_id]);
 
   const loadTimeline = async (incidentId) => {
-    const response = await fetch(
-      `${API_BASE}/incidents/${incidentId}/timeline`
-    );
+    const response = await fetch(`${API_BASE}/incidents/${incidentId}/timeline`);
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.detail || "Timeline 조회 실패");
@@ -99,6 +101,18 @@ function IncidentPanel({ onDiagnosisComplete }) {
     setEventCount(data.event_count || 0);
     return data;
   };
+
+  useEffect(() => {
+    if (!incident?.incident_id) return;
+
+    const timer = setInterval(() => {
+      loadTimeline(incident.incident_id).catch((err) => {
+        console.error("Timeline polling failed:", err);
+      });
+    }, 2000);
+
+    return () => clearInterval(timer);
+  }, [incident?.incident_id]);
 
   const startIncident = async () => {
     setLoading(true);
@@ -112,10 +126,9 @@ function IncidentPanel({ onDiagnosisComplete }) {
     setEscalation(null);
 
     try {
-      const startResponse = await fetch(
-        `${API_BASE}/incidents/start/${serverId}`,
-        { method: "POST" }
-      );
+      const startResponse = await fetch(`${API_BASE}/incidents/start/${serverId}`, {
+        method: "POST",
+      });
       const startData = await startResponse.json();
       if (!startResponse.ok) {
         throw new Error(startData.detail || "Incident 생성 실패");
@@ -157,17 +170,14 @@ function IncidentPanel({ onDiagnosisComplete }) {
     setError("");
 
     try {
-      const response = await fetch(
-        `${API_BASE}/incidents/${incident.incident_id}/recovery`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            execute,
-            recovery_vars: recoveryVars,
-          }),
-        }
-      );
+      const response = await fetch(`${API_BASE}/incidents/${incident.incident_id}/recovery`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          execute,
+          recovery_vars: recoveryVars,
+        }),
+      });
 
       const data = await response.json();
       if (!response.ok) {
@@ -220,8 +230,65 @@ function IncidentPanel({ onDiagnosisComplete }) {
   const executeServiceRecovery = () =>
     runRecovery(true, serviceRecoveryVars, "Service Recovery 실행 실패");
 
-  const getEventStatus = (event) =>
-    event.status || event.result || "UNKNOWN";
+  const currentIncidentRecord = incidentHistory.find(
+    (item) => item.incident_id === incident?.incident_id
+  );
+
+  const incidentState = (() => {
+    if (recovery?.status === "CLOSED" || currentIncidentRecord?.status === "CLOSED") {
+      return "CLOSED";
+    }
+
+    if (escalation?.escalation_status === "READY") {
+      return "VERIFYING";
+    }
+
+    if (escalation?.escalation_status) {
+      return "ESCALATING";
+    }
+
+    if (recoveryLoading || recovery) {
+      return "RECOVERING";
+    }
+
+    if (diagnosis?.diagnosis?.diagnosis_status === "MATCHED") {
+      return "ROOT_CAUSE_FOUND";
+    }
+
+    if (incident) {
+      return "INVESTIGATING";
+    }
+
+    return "DETECTED";
+  })();
+
+  const recoveryTime = (() => {
+    if (
+      incidentState !== "CLOSED" ||
+      !currentIncidentRecord?.started_at ||
+      !currentIncidentRecord?.ended_at
+    ) {
+      return null;
+    }
+
+    const start = new Date(currentIncidentRecord.started_at);
+    const end = new Date(currentIncidentRecord.ended_at);
+    const seconds = Math.max(0, Math.round((end - start) / 1000));
+
+    return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  })();
+
+  useEffect(() => {
+    onPlatformStateChange?.({
+      incident,
+      diagnosis,
+      recovery,
+      escalation,
+      incidentState,
+    });
+  }, [incident, diagnosis, recovery, escalation, incidentState, onPlatformStateChange]);
+
+  const getEventStatus = (event) => event.status || event.result || "UNKNOWN";
 
   const renderRecoveryResult = (executeHandler) => (
     <>
@@ -231,9 +298,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
           onClick={executeHandler}
           disabled={recoveryLoading}
         >
-          {recoveryLoading
-            ? "REPAIRING / VERIFYING..."
-            : "Execute Recovery"}
+          {recoveryLoading ? "REPAIRING / VERIFYING..." : "Execute Recovery"}
         </button>
       )}
 
@@ -245,9 +310,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
         >
           <span>{recovery.recovery?.mode}</span>
           <strong>{recovery.recovery?.result}</strong>
-          <small>
-            Verification: {recovery.recovery?.verification_status}
-          </small>
+          <small>Verification: {recovery.recovery?.verification_status}</small>
           {recovery.status === "CLOSED" && (
             <span className="case-closed">CASE CLOSED</span>
           )}
@@ -261,14 +324,10 @@ function IncidentPanel({ onDiagnosisComplete }) {
       <div className="section-title">
         <div>
           <h2>Live Incident Diagnosis</h2>
-          <p>
-            Incident Controller → Diagnosis Engine → Evidence Timeline
-          </p>
+          <p>Incident Controller → Diagnosis Engine → Evidence Timeline</p>
         </div>
 
-        {incident && (
-          <span className="incident-badge">{incident.incident_id}</span>
-        )}
+        {incident && <span className="incident-badge">{incident.incident_id}</span>}
       </div>
 
       <div className="incident-control">
@@ -286,11 +345,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
           </select>
         </div>
 
-        <button
-          className="diagnose-button"
-          onClick={startIncident}
-          disabled={loading}
-        >
+        <button className="diagnose-button" onClick={startIncident} disabled={loading}>
           {loading ? "Diagnosing..." : "Start Incident & Diagnose"}
         </button>
       </div>
@@ -309,13 +364,44 @@ function IncidentPanel({ onDiagnosisComplete }) {
           </div>
           <div>
             <span>Status</span>
-            <strong>
-              {diagnosis?.diagnosis?.diagnosis_status || incident.status}
-            </strong>
+            <strong>{diagnosis?.diagnosis?.diagnosis_status || incident.status}</strong>
           </div>
           <div>
             <span>Evidence</span>
             <strong>{diagnosis?.evidence_count ?? 0}</strong>
+          </div>
+        </div>
+      )}
+
+      {incident && (
+        <div className="incident-state-machine">
+          <div className="state-machine-header">
+            <div>
+              <span>INCIDENT STATE</span>
+              <h3>{incidentState.replaceAll("_", " ")}</h3>
+            </div>
+          </div>
+
+          <div className="state-machine-steps">
+            {INCIDENT_STATES.map((state, index) => {
+              const activeIndex = INCIDENT_STATES.indexOf(incidentState);
+              const stateClass =
+                index < activeIndex
+                  ? "complete"
+                  : index === activeIndex
+                  ? "active"
+                  : "pending";
+
+              return (
+                <div
+                  className={`incident-state incident-state-${stateClass}`}
+                  key={state}
+                >
+                  <div className="incident-state-dot" />
+                  <span>{state.replaceAll("_", " ")}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -332,8 +418,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
             </span>
           </div>
           <p>
-            <strong>Rule:</strong>{" "}
-            {diagnosis.diagnosis?.rule_id || "N/A"}
+            <strong>Rule:</strong> {diagnosis.diagnosis?.rule_id || "N/A"}
           </p>
           <p>
             <strong>Recommended Action:</strong>{" "}
@@ -387,16 +472,12 @@ function IncidentPanel({ onDiagnosisComplete }) {
               <span className="escalation-label">RECOVERY ESCALATION</span>
               <h3>Physical Recovery Progress</h3>
             </div>
-            <span className="escalation-level">
-              {escalation.escalation_level || "N/A"}
-            </span>
+            <span className="escalation-level">{escalation.escalation_level || "N/A"}</span>
           </div>
 
           <div className="escalation-progress">
             {ESCALATION_STEPS.map((step, index) => {
-              const activeIndex = ESCALATION_STEPS.indexOf(
-                escalation.escalation_status
-              );
+              const activeIndex = ESCALATION_STEPS.indexOf(escalation.escalation_status);
               const state =
                 index < activeIndex
                   ? "complete"
@@ -418,9 +499,20 @@ function IncidentPanel({ onDiagnosisComplete }) {
 
           <div className="escalation-current">
             <span>Current Status</span>
-            <strong>
-              {escalation.escalation_status.replaceAll("_", " ")}
-            </strong>
+            <strong>{escalation.escalation_status.replaceAll("_", " ")}</strong>
+          </div>
+        </div>
+      )}
+
+      {incidentState === "CLOSED" && (
+        <div className="final-case-result">
+          <div>
+            <span>FINAL RESULT</span>
+            <h2>CASE CLOSED</h2>
+          </div>
+          <div className="final-recovery-time">
+            <span>Recovery Time</span>
+            <strong>{recoveryTime || "Recorded"}</strong>
           </div>
         </div>
       )}
@@ -468,11 +560,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
               <h3>Incident Evidence Timeline</h3>
               <p>{eventCount} events recorded</p>
             </div>
-            <button
-              className="refresh-button"
-              onClick={refreshTimeline}
-              disabled={loading}
-            >
+            <button className="refresh-button" onClick={refreshTimeline} disabled={loading}>
               Refresh Timeline
             </button>
           </div>
@@ -481,10 +569,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
             {timeline.map((event, index) => {
               const status = getEventStatus(event);
               return (
-                <div
-                  className="live-event"
-                  key={`${event.type}-${index}`}
-                >
+                <div className="live-event" key={`${event.type}-${index}`}>
                   <div className="event-marker" />
                   <div className="event-content">
                     <div className="event-top">
@@ -494,9 +579,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
                       </div>
                       <span className="event-status">{status}</span>
                     </div>
-                    {event.layer && (
-                      <span className="event-layer">{event.layer}</span>
-                    )}
+                    {event.layer && <span className="event-layer">{event.layer}</span>}
                     {event.details && <p>{event.details}</p>}
                     {event.timestamp && <small>{event.timestamp}</small>}
                   </div>
