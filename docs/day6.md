@@ -10,7 +10,7 @@ Day 6 팀별 작업 기록
 |---|---|---|
 | **A** | Server #4 Spare/PXE Infrastructure 검증 및 One-Time Network Boot 기반 Boot Failure·복구, DHCP·ProxyDHCP·TFTP/PXELINUX Handoff 구조 검증 |
 | **B** | Automation / Troubleshooting | Escalation Engine 및 read-only Standard Build 검증 |
-| **C** | Platform / Visualization | 작성 예정 |
+| **C** | Platform / Visualization | Escalation 상태 DB/API와 2초 Polling 기반 Physical Recovery Progress UI 구현; `ESCALATION_REQUIRED → SPARE_ACTIVATING → PXE → CONFIGURING → READY` 실시간 전환 검증 |
 
 ---
 
@@ -770,4 +770,216 @@ C 담당자의 선행 PXE 설치 기록과 A의 재설치 이후 Infrastructure 
 
 # 👤 C — Day 6
 
-> 작성 예정
+> Software Recovery 실패 이후 Escalation 상태를 Backend/DB에 저장하고, React Dashboard에서 Physical Recovery 진행 상태를 자동 Polling하여 실시간 시각화
+
+## 1. Escalation 상태 DB 모델 확장
+
+### Development
+- 기존 `Incident` 모델에 Physical Recovery 진행 상태 저장 필드 추가
+
+```text
+escalation_level
+escalation_status
+```
+
+- 기존 SQLite Incident 데이터를 유지한 상태에서 `ALTER TABLE`을 사용해 두 컬럼 추가
+- 기존 DB를 `rack.db.day6bak`으로 백업한 뒤 Schema 확장 수행
+
+### 검증
+- `PRAGMA table_info(incidents)`로 컬럼 존재 확인
+- `backend/models.py` Python compile 정상 확인
+
+### Outcome
+- Incident별 Recovery Escalation Level과 진행 상태를 DB에서 지속적으로 관리할 수 있는 기반 확보
+
+---
+
+## 2. Escalation Status API 구현
+
+### Development
+- 현재 Incident의 Escalation 상태를 읽는 API 추가
+
+```text
+GET /incidents/{incident_id}/escalation
+```
+
+- Frontend 또는 Recovery Workflow에서 상태를 기록할 수 있는 API 추가
+
+```text
+POST /incidents/{incident_id}/escalation
+```
+
+- 지원 Escalation Level
+
+```text
+L1 / L2 / L3 / L4 / L5
+```
+
+- UI 상태 계약
+
+```text
+SOFTWARE_RECOVERY_FAILED
+ESCALATION_REQUIRED
+SPARE_ACTIVATING
+PXE
+CONFIGURING
+READY
+```
+
+- `ESCALATION_REQUIRED` 입력 시 Incident 상태를 `ESCALATED`로 함께 갱신
+
+### 검증
+- Incident `INC-20260902-095643-FA80`에서 초기 Escalation 값 `null` 조회 확인
+- `L3 / ESCALATION_REQUIRED` POST 후 동일 값을 GET 및 DB에서 조회 가능함을 확인
+
+### Outcome
+- B Escalation Engine 및 Physical Recovery 결과를 C Dashboard에서 사용할 수 있는 상태 API 계약 확보
+
+---
+
+## 3. Frontend 2초 자동 Polling 구현
+
+### Development
+- `IncidentPanel.jsx`에 `escalation` State 추가
+- 현재 Incident가 존재하면 `/escalation` API를 즉시 조회
+- 이후 `2,000ms` 간격으로 Backend 상태 자동 Polling
+- Incident 변경 시 기존 Polling Timer 정리
+- 새로운 Incident 생성 시 이전 Escalation State 초기화
+
+### Outcome
+- 사용자가 Refresh 버튼을 누르지 않아도 Backend의 Recovery 진행 상태가 Dashboard에 자동 반영되는 구조 구현
+
+---
+
+## 4. Physical Recovery Progress UI 구현
+
+### Development
+- Recovery Escalation 전용 Card 추가
+- 다음 6단계를 하나의 Progress UI로 구성
+
+```text
+SOFTWARE RECOVERY FAILED
+        ↓
+ESCALATION REQUIRED
+        ↓
+SPARE ACTIVATING
+        ↓
+PXE
+        ↓
+CONFIGURING
+        ↓
+READY
+```
+
+- 현재 `escalation_level`을 `L3 / L4 / L5` Badge로 표시
+- 현재 단계는 Active 상태로 강조
+- 이미 통과한 단계는 Complete 상태로 표시
+- 아직 진행하지 않은 단계는 Pending 상태로 표시
+- 현재 상태를 Card 하단 `Current Status`에 별도로 표시
+- 반응형 Layout을 적용해 작은 화면에서도 단계가 깨지지 않도록 구성
+
+### Outcome
+- Software Recovery 실패 이후 Spare 투입과 PXE Rebuild 진행 상황을 운영자 및 발표자가 한눈에 확인할 수 있는 Recovery View 확보
+
+---
+
+## 5. Incident History 상태 동기화
+
+### Development
+- 기존 Incident History 조회 Effect가 Recovery 결과뿐 아니라 `escalation_status` 변경에도 반응하도록 수정
+- Escalation API에서 Incident가 `ESCALATED`로 변경되면 History에도 갱신된 상태가 반영되도록 연결
+
+### Outcome
+- 현재 Recovery Progress와 Incident History가 서로 다른 상태를 표시하는 UI 불일치 방지
+
+---
+
+## 6. Escalation Progress 실시간 전환 검증
+
+### Test Incident
+
+```text
+INC-20260902-173359-7D66
+Target: server-207 / dca-target02
+```
+
+### 검증 흐름
+
+먼저 `L3 / ESCALATION_REQUIRED` 상태를 입력한 뒤 브라우저를 새로고침하지 않은 상태에서 약 2초 이내에 Progress Card가 자동 표시되는 것을 확인.
+
+이후 동일 Incident에 다음 상태를 순차 입력하여 실시간 진행 상태 변경 검증.
+
+```text
+L3 / ESCALATION_REQUIRED
+        ↓
+L4 / SPARE_ACTIVATING
+        ↓
+L5 / PXE
+        ↓
+L5 / CONFIGURING
+        ↓
+L5 / READY
+```
+
+### 검증 결과
+
+- `ESCALATION REQUIRED` Progress UI 자동 표시 확인
+- Escalation Level `L3` Badge 표시 확인
+- `SPARE_ACTIVATING` API 저장 성공
+- `PXE` API 저장 성공
+- `CONFIGURING` API 저장 성공
+- `READY` API 저장 성공
+- 브라우저 Refresh 없이 Polling 기반 상태 반영 구조 확인
+- React Production Build 성공
+
+### Outcome
+- Backend 상태 변화가 Frontend Physical Recovery Progress UI까지 이어지는 전체 C 데이터 흐름 검증 완료
+
+```text
+DB
+ ↓
+FastAPI Escalation API
+ ↓
+2초 Polling
+ ↓
+React Escalation State
+ ↓
+Physical Recovery Progress UI
+```
+
+---
+
+## 7. 실제 PXE / B Workflow 연계 상태
+
+C의 Escalation DB/API, Polling 및 Progress UI는 구현·검증 완료.
+
+다만 Day 6 검증에서 `SPARE_ACTIVATING → PXE → CONFIGURING → READY` 상태는 C Escalation API에 테스트 상태를 순차 입력하여 UI 흐름을 검증한 것이다.
+
+B의 현재 Escalation Engine은 L1~L5 상태 계약을 구현했지만 Infrastructure adapter가 연결되지 않은 L3~L5에서는 실제 장비 변경 대신 `MANUAL_REQUIRED`를 반환하도록 구성되어 있다.
+
+따라서 다음 두 항목을 구분한다.
+
+```text
+C Escalation 상태 저장 / API / Polling / Progress UI      : 완료
+B L3~L5 → 실제 Physical Infrastructure 자동 상태 연동    : 통합 단계에서 추가 검증 필요
+```
+
+Server #4의 실제 Rocky Linux 9.8 PXE Provisioning 자체는 선행 작업에서 성공한 이력이 있으며, Day 6 C에서는 해당 물리 설치를 다시 수행한 것이 아니라 **Backend 상태를 UI에 실시간 반영하는 Platform / Visualization 경로를 구현**했다.
+
+---
+
+## Day 6 C 최종 결과
+
+- Incident `escalation_level`, `escalation_status` DB 필드 구현
+- 기존 SQLite 데이터 유지 상태에서 Schema 확장 완료
+- Escalation 상태 GET / POST API 구현
+- `ESCALATION_REQUIRED` 시 Incident `ESCALATED` 상태 연동
+- React 2초 자동 Polling 구현
+- Physical Recovery Progress UI 구현
+- `SOFTWARE RECOVERY FAILED → ESCALATION REQUIRED → SPARE ACTIVATING → PXE → CONFIGURING → READY` 단계 시각화
+- Incident History와 Escalation 상태 동기화
+- 실제 API를 통한 `L3 → L4 → L5` 상태 전환 저장 검증
+- 브라우저 Refresh 없는 실시간 Progress UI 반영 검증
+- React Production Build 성공
+- 실제 B L3~L5 Infrastructure adapter 미연결 상태는 통합 검증 항목으로 명확히 분리
+- **Day 6 C — Recovery Escalation 상태 관리·API·자동 Polling·Physical Recovery Progress UI 구현 완료**
