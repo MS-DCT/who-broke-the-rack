@@ -8,7 +8,7 @@ Day 7 팀별 작업 기록
 
 | Role | 담당 | Day 7 작업 |
 |---|---|---|
-| **A** | Hardware / Infrastructure | 작성 예정 |
+| **A** | Hardware / Infrastructure | Node Failure 재현 및 Target 격리·Spare #4 Physical Recovery 검증, Backend 연계·3개 Recovery Scenario 통합 |
 | **B** | Automation / Troubleshooting | 공통 Incident/Recovery/Escalation Workflow 구현 |
 | **C** | Platform / Visualization | 작성 예정 |
 
