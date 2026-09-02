@@ -78,6 +78,6 @@
 
 | Day | A | B | C |
 |---|---|---|---|
-| **Day 8 — 2026-09-01** | 작성 예정 | B 통합·안전성 회귀 101건 완료; L3~L5 실제 실행은 Infrastructure adapter 미연결로 MANUAL_REQUIRED | 작성예정 |
+| **Day 8 — 2026-09-01** | Reset Checklist 기반 Demo Baseline 검증 및 Network·Service·Physical Recovery 반복 안정성 검증; 수동 우회 절차·발표용 Evidence 확보 | B 통합·안전성 회귀 101건 완료; L3~L5 실제 실행은 Infrastructure adapter 미연결로 MANUAL_REQUIRED | 작성예정 |
 
 ➡️ [Day 8 상세 작업 기록](docs/day8.md)
