@@ -8,7 +8,7 @@ Day 1 팀별 작업 기록
 
 | Role | 담당 | Day 1 작업 |
 |---|---|---|
-| **A** | Hardware / Infrastructure | #5~#8 서버 Hardware / iLO / NIC·Network Baseline 및 역할 매핑 완료 (.60 복구 후 재검증 예정) |
+| **A** | Hardware / Infrastructure | #5~#8 서버 Hardware / iLO / NIC·Network Baseline 및 역할 매핑 완료, PXE Server .60 물리 연결 문제 후속 해결·Reachability 재검증 완료 |
 | **B** | Automation / Troubleshooting | Ansible 대상 서버 구성 + QSFP/네트워크 Baseline 수동 검증 + 수동 Evidence 확보 |
 | **C** | Platform / Visualization | `.206` / `.207` 서버 환경 구성 + FastAPI + SQLite + React Dashboard + GitHub 구성 |
 
@@ -16,7 +16,7 @@ Day 1 팀별 작업 기록
 
 # 👤 A — Day 1
 
-> #5~#8 서버의 실제 하드웨어, iLO, 운영체제, 40GbE NIC 및 네트워크 상태를 점검하고 프로젝트의 Hardware / Infrastructure Baseline을 확정
+> #5~#8 서버의 실제 하드웨어, iLO, 운영체제, 40GbE NIC 및 네트워크 상태를 점검하고 프로젝트의 Hardware / Infrastructure Baseline 확정
 
 ### Development / Infrastructure
 
@@ -25,9 +25,9 @@ Day 1 팀별 작업 기록
 - 서버별 Data Plane IP, NIC 이름, Gateway 및 VLAN 100 연결 상태 확인
 - QSFP+ 40GbE NIC의 실제 장치 모델과 Kernel Driver 확인
 - Mellanox `mlx4_core`, `mlx4_en` 모듈 및 ELRepo `kmod-mlx4` 설치 상태 확인
-- Cisco Nexus L3 스위치의 VLAN 100과 서버 연결 상태 점검
-- ZT Storage PXE Server, Cisco SVI, Load Balancer 및 기존 관리 인터페이스 연결 구조 확인
-- iLO에서 Hardware/POST Evidence로 활용할 수 있는 항목 조사
+- Cisco Nexus L3 스위치의 VLAN 100, SVI 및 서버 연결 상태 점검
+- ZT Storage PXE Server, Cisco SVI, Load Balancer 및 관리 인터페이스 연결 구조 확인
+- iLO에서 Hardware / POST Evidence로 활용 가능한 항목 조사
 - #5~#8 물리 서버의 프로젝트 역할 최종 매핑
 
 ### Implementation
@@ -38,17 +38,17 @@ Day 1 팀별 작업 기록
   - #6: `192.168.100.206/24`
   - #7: `192.168.100.207/24`
   - #8: `192.168.100.208/24`
-  - NIC: `eno49`
+  - Day 1 기준 Data NIC: `eno49`
   - Gateway / Cisco SVI: `192.168.100.200`
   - VLAN: `100`
-- `lspci -nnk`와 `ethtool -i eno49`를 이용해 Mellanox NIC와 `mlx4_en` Driver 확인
-- `ethtool eno49`를 이용해 40Gbps, Full Duplex 및 Physical Link UP 상태 확인
-- Rocky Linux 서버에서 ELRepo `kmod-mlx4` 설치와 다음 모듈의 정상 로드 상태 확인
+- `lspci -nnk`와 `ethtool -i eno49`를 이용한 Mellanox NIC 및 `mlx4_en` Driver 확인
+- `ethtool eno49`를 이용한 40Gbps, Full Duplex 및 Physical Link UP 상태 확인
+- Rocky Linux 서버에서 ELRepo `kmod-mlx4` 설치 및 다음 모듈의 정상 로드 상태 확인
   - `mlx4_core`
   - `mlx4_en`
   - `mlx4_ib`
 - #8 서버에서 별도의 강제 모듈 로드 설정 없이 NIC 장치 인식에 따라 `mlx4_en`이 정상 로드되는 상태를 Baseline으로 기록
-- Cisco SVI `.200`과 LB Data Plane `.90`을 기준으로 네트워크 통신 경로 확인
+- Cisco SVI `.200`과 LB Data Plane `.90`을 기준으로 Data Plane 통신 경로 확인
 - iLO Hardware Evidence 후보 목록 정리
   - iLO Event Log
   - Integrated Management Log (IML)
@@ -66,24 +66,24 @@ Day 1 팀별 작업 기록
 ### Test / Verification
 
 - #5~#8 서버의 iLO 접속 및 HTML5 Remote Console 동작 확인
-- 서버별 Power ON 및 현재 System Health `OK` 확인
+- 서버별 Power ON 및 System Health `OK` 확인
 - CPU, RAM, Storage 및 NIC 장착 상태 확인
 - 장착된 Memory의 `Good, In Use` 상태 확인
 - Storage Controller, Logical Drive 및 Physical Drive 상태 확인
-- `eno49`의 Data Plane IP와 Gateway 설정 확인
+- `eno49`의 Data Plane IP 및 Gateway 설정 확인
 - #5~#8 서버의 QSFP+ 40GbE Physical Link UP 확인
-- #5~#8 서버에서 Cisco SVI `192.168.100.200` 통신 성공
-- #5~#8 서버에서 VLAN 100 통신 상태 확인
-- LB Data Plane `192.168.100.90` 통신 성공
+- #5~#8 서버에서 Cisco SVI `192.168.100.200` 통신 상태 확인
+- #5~#8 서버에서 VLAN 100 Data Plane 통신 상태 확인
+- LB Data Plane `192.168.100.90` 통신 확인
 - OPNsense `.250` 및 Citrix NetScaler LOM `.251` 관리 인터페이스 확인
-- iLO IML에서 POST Message 기록 확인
-- Remote Console을 통해 운영체제 Boot 상태 수동 확인
-- 서버별 Hostname을 이용해 Management / Target A / Target B / Spare 역할 매핑 검증
+- iLO IML 및 POST 관련 기록 확인
+- Remote Console을 통한 운영체제 Boot 상태 수동 확인
+- 서버별 Hostname을 이용한 Management / Target A / Target B / Spare 역할 매핑 검증
 
 ### Baseline Result
 
 | Server | Hostname | Operating System | Data Plane IP | Role |
-|---|---|---|---|---|
+| ------ | -------- | ---------------- | ------------- | ---- |
 | #5 | `dca-target01` | Ubuntu 26.04 LTS | `192.168.100.205` | Target A |
 | #6 | `dca-mgmt01` | Rocky Linux 10 | `192.168.100.206` | Management |
 | #7 | `dca-target02` | Rocky Linux 10 | `192.168.100.207` | Target B |
@@ -91,26 +91,61 @@ Day 1 팀별 작업 기록
 
 ### Issue & Resolution
 
+#### 1. #8 Data NIC 자동 활성화 문제
+
 - #8 서버에서 재부팅 후 `eno49` 연결이 자동 활성화되지 않는 현상 확인
 - NetworkManager 연결 프로파일의 `connection.autoconnect` 값이 `no`로 설정된 것을 원인으로 확인
-- `connection.autoconnect yes`로 수정하고 `.208/24`, Gateway `.200` 설정이 프로파일에 저장된 것을 확인
+- `connection.autoconnect yes`로 수정
+- `.208/24`, Gateway `.200` 설정이 NetworkManager 연결 프로파일에 저장된 상태 확인
+- 재부팅 이후 Data NIC 및 Data Plane 설정 유지 상태 확인
+
+**판정: NetworkManager Auto Connect 설정 수정 후 해결 완료**
+
+#### 2. ZT Storage / PXE Server `.60` 통신 장애
+
 - ZT Storage PXE Server `192.168.100.60` 통신 불가 현상 확인
-- #5~#8 서버 모두 Cisco SVI `.200`까지는 정상 통신하지만 PXE Server `.60`에는 통신하지 못하는 상태 확인
-- Nexus Storage 연결 포트와 VLAN 100 MAC Address Table 점검
+- #8 서버의 `eno49` 40GbE Physical Link 및 `192.168.100.208/24` 설정 정상 확인
+- #8 기준 Cisco SVI `.200` 및 LB Data Plane `.90` 통신 정상 상태에서 PXE Server `.60`만 통신 실패 확인
+- `.208 → .60` Ping 실패 및 ARP Neighbor `FAILED` 확인
+- 동일 VLAN 100 내부의 `.200`, `.90` 통신 정상 상태를 근거로 #8 NIC 및 Data Plane 전체 장애 가능성 배제
+- Nexus에서 ZT Storage 연결 후보 포트 및 VLAN 100 상태 추가 점검
   - `Eth1/47`: QSFP-40G-CR4 Transceiver 인식 / Physical Link Down
   - `Eth1/48`: Transceiver 미인식
+  - `.60` ARP 정보 미확인
   - Storage 측 MAC Address 미학습
-- 초기 점검에서는 Storage–Nexus 사이의 하위 계층 연결 문제로 장애 범위를 축소
-- 이후 Storage 서버의 기존 HDD 2개 중 1개가 제거된 뒤 Ubuntu 부팅 또는 OS 구성이 정상적으로 올라오지 않은 문제가 추가로 확인됨
-- VLAN 또는 서버 Data Plane 설정 문제로 단정하지 않고 Storage 서버의 Disk / OS Boot 복구가 필요한 별도 미해결 이슈로 기록
-- Storage 서버 복구 후 `.60` 통신, Nexus Physical Link 및 MAC Address 학습 상태 재검증 예정
+- 초기 점검 결과 Server #8의 Boot Order, NIC Driver, 40GbE Link 및 VLAN 100보다 ZT Storage / PXE 측 물리 연결 구간으로 장애 범위 축소
+- 후속 현장 점검에서 ZT Storage / PXE 측 물리 포트 연결 문제 확인
+- 물리 포트 연결 수정 후 PXE Server `192.168.100.60` Reachability 정상화 확인
+
+**판정: ZT Storage / PXE 측 물리 연결 문제 확인 및 후속 조치 후 해결 완료**
+
+#### 3. Server #8 PXE 후속 검증
+
+- 후속 단계에서 C 담당자의 Server #8 Rocky Linux 9.8 PXE 재설치 수행
+- 재설치 이후 운영체제에서 기존 `eno49`가 아닌 `pxe0` 인터페이스명으로 40GbE NIC 인식 확인
+- A 담당 영역에서 재설치된 Server #8의 NIC 및 Data Plane 상태 별도 검증
+  - Interface: `pxe0`
+  - IP: `192.168.100.208/24`
+  - Driver: `mlx4_en`
+  - Speed: `40000Mb/s`
+  - Duplex: `Full`
+  - Link detected: `yes`
+  - PXE Server `192.168.100.60` Reachability: `PASS`
+- PXE 재설치 작업과 재설치 이후 Hardware / Network 검증 작업을 담당 영역에 따라 분리 기록
+
+**판정: Rocky Linux 9.8 PXE 재설치 이후 Server #8 40GbE NIC 및 PXE Server 통신 정상 상태 검증 완료**
 
 ### Day 1 Result
 
 - #5~#8 서버의 Hardware / iLO / OS / NIC / Network Baseline 확정 완료
-- 4대 서버의 물리 장비 역할 매핑 완료
-- 세 파트가 공통으로 사용할 Hardware Evidence 항목 정리 완료
-- ZT Storage PXE Server `.60` 장애는 후속 복구 및 재검증 대상으로 분리
+- 4대 물리 서버의 Management / Target A / Target B / Spare 역할 매핑 완료
+- QSFP+ 40GbE NIC, `mlx4_en`, Data Plane 및 VLAN 100 동작 상태 검증 완료
+- 세 파트가 공통으로 사용할 Hardware / POST Evidence 후보 항목 정리 완료
+- #8 NetworkManager Auto Connect 문제 원인 확인 및 설정 수정 완료
+- ZT Storage PXE Server `.60` 통신 장애를 Storage / PXE 측 물리 연결 구간으로 분리
+- 후속 현장 점검을 통한 물리 포트 연결 문제 수정 및 `.60` Reachability 정상화 확인
+- C 담당자의 Server #8 Rocky Linux 9.8 PXE 재설치 이후 A 담당 영역에서 `pxe0` 40Gbps Link 및 `.60` 통신 정상 상태 최종 검증
+
 ---
 
 # 👤 B — Day 1
