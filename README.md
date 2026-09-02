@@ -70,7 +70,7 @@
 |---|---|---|---|
 | **Day 7 — 2026-08-31** | Target #3 Node Failure 재현 및 Spare #4 Physical Recovery 검증; Backend 연계 및 Network·Service·Physical Recovery 3개 Scenario 통합 | Network/Service/Physical 공통 Workflow와 adapter·timeline·resume 계약 구현 및 mock 검증 | Incident State Machine, 2초 Timeline Polling, Rack Overview `FAILED/RECOVERING/READY`, Physical Recovery `VERIFYING`, `CASE CLOSED` 및 Recovery Time UI 구현 |
 
-➡️ [Day 7 상세 작업 기록](docs/day7.md) · [C 상세 기록](docs/day7-c.md)
+➡️ [Day 7 상세 작업 기록](docs/day7.md)
 
 ---
 
