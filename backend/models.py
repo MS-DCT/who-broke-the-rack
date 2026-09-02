@@ -12,6 +12,8 @@ class Incident(Base):
     server_id = Column(String, nullable=False)
     status = Column(String, default="DETECTED")
     root_cause = Column(Text, nullable=True)
+    escalation_level = Column(String, nullable=True)
+    escalation_status = Column(String, nullable=True)
     started_at = Column(DateTime, server_default=func.now())
     ended_at = Column(DateTime, nullable=True)
 
