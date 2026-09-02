@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 
 const API_BASE = "http://192.168.100.206:8000";
 
+const ESCALATION_STEPS = [
+  "SOFTWARE_RECOVERY_FAILED",
+  "ESCALATION_REQUIRED",
+  "SPARE_ACTIVATING",
+  "PXE",
+  "CONFIGURING",
+  "READY",
+];
+
 function IncidentPanel({ onDiagnosisComplete }) {
   const [serverId, setServerId] = useState("server-207");
   const [incident, setIncident] = useState(null);
@@ -14,6 +23,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
   const [error, setError] = useState("");
   const [incidentHistory, setIncidentHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [escalation, setEscalation] = useState(null);
 
   const loadIncidentHistory = async () => {
     setHistoryLoading(true);
@@ -43,7 +53,39 @@ function IncidentPanel({ onDiagnosisComplete }) {
 
   useEffect(() => {
     loadIncidentHistory();
-  }, [incident?.incident_id, recovery?.status]);
+  }, [incident?.incident_id, recovery?.status, escalation?.escalation_status]);
+
+  const loadEscalation = async (incidentId) => {
+    if (!incidentId) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/incidents/${incidentId}/escalation`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Escalation 상태 조회 실패");
+      }
+
+      setEscalation(data);
+      return data;
+    } catch (err) {
+      console.error("Escalation polling failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!incident?.incident_id) return;
+
+    loadEscalation(incident.incident_id);
+
+    const timer = setInterval(() => {
+      loadEscalation(incident.incident_id);
+    }, 2000);
+
+    return () => clearInterval(timer);
+  }, [incident?.incident_id]);
 
   const loadTimeline = async (incidentId) => {
     const response = await fetch(
@@ -67,6 +109,7 @@ function IncidentPanel({ onDiagnosisComplete }) {
     setTimeline([]);
     setEventCount(0);
     setRecovery(null);
+    setEscalation(null);
 
     try {
       const startResponse = await fetch(
@@ -336,6 +379,51 @@ function IncidentPanel({ onDiagnosisComplete }) {
             {renderRecoveryResult(executeServiceRecovery)}
           </div>
         )}
+
+      {escalation?.escalation_status && (
+        <div className="escalation-card">
+          <div className="escalation-header">
+            <div>
+              <span className="escalation-label">RECOVERY ESCALATION</span>
+              <h3>Physical Recovery Progress</h3>
+            </div>
+            <span className="escalation-level">
+              {escalation.escalation_level || "N/A"}
+            </span>
+          </div>
+
+          <div className="escalation-progress">
+            {ESCALATION_STEPS.map((step, index) => {
+              const activeIndex = ESCALATION_STEPS.indexOf(
+                escalation.escalation_status
+              );
+              const state =
+                index < activeIndex
+                  ? "complete"
+                  : index === activeIndex
+                  ? "active"
+                  : "pending";
+
+              return (
+                <div
+                  className={`escalation-step escalation-step-${state}`}
+                  key={step}
+                >
+                  <div className="escalation-dot" />
+                  <span>{step.replaceAll("_", " ")}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="escalation-current">
+            <span>Current Status</span>
+            <strong>
+              {escalation.escalation_status.replaceAll("_", " ")}
+            </strong>
+          </div>
+        </div>
+      )}
 
       <div className="incident-history-section">
         <div className="incident-history-header">
